@@ -2,8 +2,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, Heart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useCart } from "@/hooks/useCart";
+import { useWishlist } from "@/hooks/useWishlist";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
+  id?: string;
   name: string;
   price: number;
   originalPrice?: number;
@@ -13,6 +18,7 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({
+  id,
   name,
   price,
   originalPrice,
@@ -23,6 +29,33 @@ const ProductCard = ({
   const discount = originalPrice
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;
+  const { addToCart } = useCart();
+  const { addToWishlist, isInWishlist } = useWishlist();
+  const { user } = useAuth();
+
+  const handleAddToCart = async () => {
+    if (!id) {
+      toast({
+        title: "Error",
+        description: "Product ID not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    await addToCart(id, 1);
+  };
+
+  const handleAddToWishlist = async () => {
+    if (!id) {
+      toast({
+        title: "Error",
+        description: "Product ID not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    await addToWishlist(id);
+  };
 
   return (
     <Card className="group overflow-hidden border-border hover:border-primary transition-all duration-300 hover:shadow-large">
@@ -41,8 +74,9 @@ const ProductCard = ({
           variant="ghost"
           size="icon"
           className="absolute top-3 right-3 bg-background/80 backdrop-blur hover:bg-background"
+          onClick={handleAddToWishlist}
         >
-          <Heart className="w-4 h-4" />
+          <Heart className={`w-4 h-4 ${id && isInWishlist(id) ? 'fill-primary text-primary' : ''}`} />
         </Button>
         {!inStock && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur flex items-center justify-center">
@@ -73,7 +107,7 @@ const ProductCard = ({
               </div>
             )}
           </div>
-          <Button variant="gradient" size="icon" disabled={!inStock}>
+          <Button variant="gradient" size="icon" disabled={!inStock} onClick={handleAddToCart}>
             <ShoppingCart className="w-4 h-4" />
           </Button>
         </div>

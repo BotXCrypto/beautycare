@@ -111,6 +111,7 @@ const Shop = () => {
             {products.map((product) => (
               <ProductCard
                 key={product.id}
+                id={product.id}
                 name={product.title}
                 price={product.price}
                 originalPrice={product.original_price}
