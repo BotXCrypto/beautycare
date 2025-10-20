@@ -1,52 +1,51 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import CategoryCard from "@/components/CategoryCard";
 import ProductCard from "@/components/ProductCard";
 import Features from "@/components/Features";
 import Footer from "@/components/Footer";
-import categoryAC from "@/assets/category-ac.jpg";
-import categoryTV from "@/assets/category-tv.jpg";
-import categoryIron from "@/assets/category-iron.jpg";
-import categoryRemote from "@/assets/category-remote.jpg";
 
-const categories = [
-  { title: "Air Conditioners", image: categoryAC, productCount: 45 },
-  { title: "TVs & Displays", image: categoryTV, productCount: 120 },
-  { title: "Home Appliances", image: categoryIron, productCount: 78 },
-  { title: "Accessories", image: categoryRemote, productCount: 200 },
-];
+interface Category {
+  id: string;
+  name: string;
+  image_url: string;
+}
 
-const featuredProducts = [
-  {
-    name: "Smart LED TV 55 inch 4K Ultra HD",
-    price: 599,
-    originalPrice: 799,
-    image: categoryTV,
-    rating: 4.8,
-  },
-  {
-    name: "Inverter Air Conditioner 1.5 Ton",
-    price: 449,
-    originalPrice: 599,
-    image: categoryAC,
-    rating: 4.6,
-  },
-  {
-    name: "Steam Iron Professional 2400W",
-    price: 49,
-    originalPrice: 79,
-    image: categoryIron,
-    rating: 4.5,
-  },
-  {
-    name: "Universal Remote Control Smart",
-    price: 29,
-    image: categoryRemote,
-    rating: 4.7,
-  },
-];
+interface Product {
+  id: string;
+  title: string;
+  price: number;
+  original_price?: number;
+  image_url: string;
+  rating?: number;
+  stock: number;
+}
 
 const Index = () => {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchFeaturedProducts();
+  }, []);
+
+  const fetchCategories = async () => {
+    const { data } = await supabase.from('categories').select('*').limit(4);
+    if (data) setCategories(data);
+  };
+
+  const fetchFeaturedProducts = async () => {
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .limit(4)
+      .order('created_at', { ascending: false });
+    if (data) setFeaturedProducts(data);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -67,8 +66,8 @@ const Index = () => {
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((category, index) => (
-            <CategoryCard key={index} {...category} />
+          {categories.map((category) => (
+            <CategoryCard key={category.id} title={category.name} image={category.image_url} productCount={0} />
           ))}
         </div>
       </section>
@@ -87,8 +86,16 @@ const Index = () => {
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map((product, index) => (
-            <ProductCard key={index} {...product} />
+          {featuredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              name={product.title}
+              price={product.price}
+              originalPrice={product.original_price}
+              image={product.image_url}
+              rating={product.rating}
+              inStock={product.stock > 0}
+            />
           ))}
         </div>
       </section>
