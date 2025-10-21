@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/hooks/useCart";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "@/hooks/use-toast";
 
 interface ProductCardProps {
@@ -32,6 +33,7 @@ const ProductCard = ({
   const { addToCart } = useCart();
   const { addToWishlist, isInWishlist } = useWishlist();
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
 
   const handleAddToCart = async () => {
     if (!id) {
@@ -100,10 +102,10 @@ const ProductCard = ({
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xl font-bold text-primary">${price}</div>
+            <div className="text-xl font-bold text-primary">{formatPrice(price)}</div>
             {originalPrice && (
               <div className="text-sm text-muted-foreground line-through">
-                ${originalPrice}
+                {formatPrice(originalPrice)}
               </div>
             )}
           </div>

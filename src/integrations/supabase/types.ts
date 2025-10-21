@@ -112,6 +112,78 @@ export type Database = {
         }
         Relationships: []
       }
+      cities: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          province: string
+          shipping_zone: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          province: string
+          shipping_zone: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          province?: string
+          shipping_zone?: number
+        }
+        Relationships: []
+      }
+      currencies: {
+        Row: {
+          code: string
+          created_at: string | null
+          is_active: boolean | null
+          name: string
+          symbol: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          is_active?: boolean | null
+          name: string
+          symbol: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          is_active?: boolean | null
+          name?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
+      exchange_rates: {
+        Row: {
+          from_currency: string
+          id: string
+          rate: number
+          to_currency: string
+          updated_at: string | null
+        }
+        Insert: {
+          from_currency: string
+          id?: string
+          rate: number
+          to_currency: string
+          updated_at?: string | null
+        }
+        Update: {
+          from_currency?: string
+          id?: string
+          rate?: number
+          to_currency?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string | null
@@ -243,18 +315,21 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          preferred_currency: string | null
         }
         Insert: {
           created_at?: string | null
           full_name?: string | null
           id: string
           phone?: string | null
+          preferred_currency?: string | null
         }
         Update: {
           created_at?: string | null
           full_name?: string | null
           id?: string
           phone?: string | null
+          preferred_currency?: string | null
         }
         Relationships: []
       }
@@ -334,6 +409,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_shipping_cost: {
+        Args: { from_zone: number; order_total: number; to_zone: number }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

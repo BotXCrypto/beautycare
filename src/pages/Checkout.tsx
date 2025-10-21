@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -6,17 +6,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+
+interface City {
+  id: string;
+  name: string;
+  province: string;
+  shipping_zone: number;
+}
 
 const Checkout = () => {
   const { items, total, clearCart } = useCart();
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [paymentType, setPaymentType] = useState<'COD' | 'Online'>('COD');
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedCityId, setSelectedCityId] = useState('');
+  const [shippingCost, setShippingCost] = useState(500);
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
@@ -26,6 +39,56 @@ const Checkout = () => {
     state: '',
     postalCode: '',
   });
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCityId) {
+      calculateShipping();
+    }
+  }, [selectedCityId, total]);
+
+  const fetchCities = async () => {
+    const { data } = await supabase
+      .from('cities')
+      .select('*')
+      .order('name');
+    
+    if (data) {
+      setCities(data);
+    }
+  };
+
+  const calculateShipping = async () => {
+    const selectedCity = cities.find(c => c.id === selectedCityId);
+    if (!selectedCity) return;
+
+    // Assume origin is from zone 1 (major city)
+    const { data, error } = await supabase
+      .rpc('calculate_shipping_cost', {
+        from_zone: 1,
+        to_zone: selectedCity.shipping_zone,
+        order_total: total
+      });
+
+    if (!error && data !== null) {
+      setShippingCost(data);
+    }
+  };
+
+  const handleCityChange = (cityId: string) => {
+    const city = cities.find(c => c.id === cityId);
+    if (city) {
+      setSelectedCityId(cityId);
+      setAddress({
+        ...address,
+        city: city.name,
+        state: city.province,
+      });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +120,7 @@ const Checkout = () => {
         .from('orders')
         .insert({
           user_id: user.id,
-          total: total + 10, // Including shipping
+          total: total + shippingCost,
           payment_type: paymentType,
           payment_status: paymentType === 'Online' ? 'Paid' : 'Pending',
           status: 'Pending',
@@ -156,23 +219,20 @@ const Checkout = () => {
                       onChange={(e) => setAddress({ ...address, addressLine2: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      required
-                      value={address.city}
-                      onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State *</Label>
-                    <Input
-                      id="state"
-                      required
-                      value={address.state}
-                      onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                    />
+                    <Select value={selectedCityId} onValueChange={handleCityChange} required>
+                      <SelectTrigger id="city">
+                        <SelectValue placeholder="Select your city" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {cities.map((city) => (
+                          <SelectItem key={city.id} value={city.id}>
+                            {city.name}, {city.province}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="postalCode">Postal Code *</Label>
@@ -219,7 +279,7 @@ const Checkout = () => {
                 {items.map((item) => (
                   <div key={item.id} className="flex justify-between text-sm">
                     <span>{item.product.title} x{item.quantity}</span>
-                    <span>${(item.product.price * item.quantity).toFixed(2)}</span>
+                    <span>{formatPrice(item.product.price * item.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -227,15 +287,26 @@ const Checkout = () => {
               <div className="border-t pt-3 space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping:</span>
-                  <span>$10.00</span>
+                  <span>
+                    {shippingCost === 0 ? (
+                      <span className="text-green-600 font-semibold">FREE</span>
+                    ) : (
+                      formatPrice(shippingCost)
+                    )}
+                  </span>
                 </div>
+                {shippingCost === 0 && total >= 100000 && (
+                  <div className="text-xs text-green-600">
+                    🎉 Free shipping on orders above ₨100,000!
+                  </div>
+                )}
                 <div className="border-t pt-2 flex justify-between text-xl font-bold">
                   <span>Total:</span>
-                  <span className="text-primary">${(total + 10).toFixed(2)}</span>
+                  <span className="text-primary">{formatPrice(total + shippingCost)}</span>
                 </div>
               </div>
             </div>

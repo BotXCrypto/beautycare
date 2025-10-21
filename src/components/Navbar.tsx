@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/hooks/useCart";
+import CurrencySelector from "./CurrencySelector";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -54,6 +55,9 @@ const Navbar = () => {
 
           {/* Actions */}
           <div className="flex items-center space-x-4">
+            <div className="hidden lg:block">
+              <CurrencySelector />
+            </div>
             <Button variant="ghost" size="icon" asChild className="hidden md:inline-flex">
               <Link to="/wishlist">
                 <Heart className="w-5 h-5" />
