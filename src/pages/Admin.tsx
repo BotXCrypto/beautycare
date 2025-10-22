@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { Package, ShoppingCart, Users, DollarSign, Pencil, Trash2, Plus } from 'lucide-react';
+import { CategoryManager } from '@/components/admin/CategoryManager';
+import { ProductImageManager } from '@/components/admin/ProductImageManager';
 
 interface Product {
   id: string;
@@ -24,6 +26,11 @@ interface Product {
   stock: number;
   image_url: string;
   brand: string;
+}
+
+interface ProductImage {
+  image_url: string;
+  display_order: number;
 }
 
 const Admin = () => {
@@ -43,6 +50,7 @@ const Admin = () => {
     image_url: '',
     brand: '',
   });
+  const [productImages, setProductImages] = useState<ProductImage[]>([]);
 
   useEffect(() => {
     if (!user || !isAdmin) {
@@ -108,17 +116,36 @@ const Admin = () => {
     e.preventDefault();
 
     try {
-      const { error } = await supabase.from('products').insert({
-        title: newProduct.title,
-        description: newProduct.description,
-        price: parseFloat(newProduct.price),
-        original_price: newProduct.original_price ? parseFloat(newProduct.original_price) : null,
-        stock: parseInt(newProduct.stock),
-        image_url: newProduct.image_url,
-        brand: newProduct.brand,
-      });
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .insert({
+          title: newProduct.title,
+          description: newProduct.description,
+          price: parseFloat(newProduct.price),
+          original_price: newProduct.original_price ? parseFloat(newProduct.original_price) : null,
+          stock: parseInt(newProduct.stock),
+          image_url: newProduct.image_url,
+          brand: newProduct.brand,
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (productError) throw productError;
+
+      // Insert product images
+      if (productImages.length > 0 && productData) {
+        const imageInserts = productImages.map((img) => ({
+          product_id: productData.id,
+          image_url: img.image_url,
+          display_order: img.display_order,
+        }));
+
+        const { error: imagesError } = await supabase
+          .from('product_images')
+          .insert(imageInserts);
+
+        if (imagesError) throw imagesError;
+      }
 
       toast({
         title: "Product added",
@@ -134,6 +161,7 @@ const Admin = () => {
         image_url: '',
         brand: '',
       });
+      setProductImages([]);
       
       fetchStats();
       fetchProducts();
@@ -152,7 +180,7 @@ const Admin = () => {
     if (!editingProduct) return;
 
     try {
-      const { error } = await supabase
+      const { error: productError } = await supabase
         .from('products')
         .update({
           title: editingProduct.title,
@@ -165,7 +193,28 @@ const Admin = () => {
         })
         .eq('id', editingProduct.id);
 
-      if (error) throw error;
+      if (productError) throw productError;
+
+      // Delete existing images
+      await supabase
+        .from('product_images')
+        .delete()
+        .eq('product_id', editingProduct.id);
+
+      // Insert new images
+      if (productImages.length > 0) {
+        const imageInserts = productImages.map((img) => ({
+          product_id: editingProduct.id,
+          image_url: img.image_url,
+          display_order: img.display_order,
+        }));
+
+        const { error: imagesError } = await supabase
+          .from('product_images')
+          .insert(imageInserts);
+
+        if (imagesError) throw imagesError;
+      }
 
       toast({
         title: "Product updated",
@@ -173,6 +222,7 @@ const Admin = () => {
       });
 
       setEditingProduct(null);
+      setProductImages([]);
       fetchProducts();
       setDialogOpen(false);
     } catch (error: any) {
@@ -222,11 +272,21 @@ const Admin = () => {
       image_url: '',
       brand: '',
     });
+    setProductImages([]);
     setDialogOpen(true);
   };
 
-  const openEditDialog = (product: Product) => {
+  const openEditDialog = async (product: Product) => {
     setEditingProduct(product);
+    
+    // Fetch product images
+    const { data: images } = await supabase
+      .from('product_images')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('display_order');
+    
+    setProductImages(images || []);
     setDialogOpen(true);
   };
 
@@ -285,7 +345,9 @@ const Admin = () => {
         <Tabs defaultValue="products">
           <TabsList>
             <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
+            <TabsTrigger value="manage">Manage</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products">
@@ -386,7 +448,7 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="image_url">Image URL</Label>
+                        <Label htmlFor="image_url">Main Image URL</Label>
                         <Input
                           id="image_url"
                           type="url"
@@ -396,6 +458,12 @@ const Admin = () => {
                               ? setEditingProduct({ ...editingProduct, image_url: e.target.value })
                               : setNewProduct({ ...newProduct, image_url: e.target.value })
                           }
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <ProductImageManager
+                          images={productImages}
+                          onChange={setProductImages}
                         />
                       </div>
                     </div>
@@ -470,10 +538,21 @@ const Admin = () => {
             )}
           </TabsContent>
 
+          <TabsContent value="categories">
+            <CategoryManager />
+          </TabsContent>
+
           <TabsContent value="orders">
             <Card className="p-6">
               <h2 className="text-2xl font-bold mb-4">Recent Orders</h2>
               <p className="text-muted-foreground">Order management coming soon...</p>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="manage">
+            <Card className="p-6">
+              <h2 className="text-2xl font-bold mb-4">Site Management</h2>
+              <p className="text-muted-foreground">Additional management features coming soon...</p>
             </Card>
           </TabsContent>
         </Tabs>
