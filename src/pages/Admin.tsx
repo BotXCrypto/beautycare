@@ -51,6 +51,8 @@ const Admin = () => {
     brand: '',
   });
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
+  const [mainImageFile, setMainImageFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!user || !isAdmin) {
@@ -114,8 +116,30 @@ const Admin = () => {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
 
     try {
+      let mainImageUrl = newProduct.image_url;
+
+      // Upload main image if selected
+      if (mainImageFile) {
+        const fileExt = mainImageFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = fileName;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, mainImageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+
+        mainImageUrl = publicUrl;
+      }
+
       const { data: productData, error: productError } = await supabase
         .from('products')
         .insert({
@@ -124,7 +148,7 @@ const Admin = () => {
           price: parseFloat(newProduct.price),
           original_price: newProduct.original_price ? parseFloat(newProduct.original_price) : null,
           stock: parseInt(newProduct.stock),
-          image_url: newProduct.image_url,
+          image_url: mainImageUrl,
           brand: newProduct.brand,
         })
         .select()
@@ -162,6 +186,7 @@ const Admin = () => {
         brand: '',
       });
       setProductImages([]);
+      setMainImageFile(null);
       
       fetchStats();
       fetchProducts();
@@ -172,14 +197,38 @@ const Admin = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
+    setUploading(true);
 
     try {
+      let mainImageUrl = editingProduct.image_url;
+
+      // Upload main image if selected
+      if (mainImageFile) {
+        const fileExt = mainImageFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = fileName;
+
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, mainImageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
+
+        mainImageUrl = publicUrl;
+      }
+
       const { error: productError } = await supabase
         .from('products')
         .update({
@@ -188,14 +237,14 @@ const Admin = () => {
           price: editingProduct.price,
           original_price: editingProduct.original_price,
           stock: editingProduct.stock,
-          image_url: editingProduct.image_url,
+          image_url: mainImageUrl,
           brand: editingProduct.brand,
         })
         .eq('id', editingProduct.id);
 
       if (productError) throw productError;
 
-      // Delete existing images
+      // Delete existing product images
       await supabase
         .from('product_images')
         .delete()
@@ -223,6 +272,7 @@ const Admin = () => {
 
       setEditingProduct(null);
       setProductImages([]);
+      setMainImageFile(null);
       fetchProducts();
       setDialogOpen(false);
     } catch (error: any) {
@@ -231,6 +281,8 @@ const Admin = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -273,11 +325,13 @@ const Admin = () => {
       brand: '',
     });
     setProductImages([]);
+    setMainImageFile(null);
     setDialogOpen(true);
   };
 
   const openEditDialog = async (product: Product) => {
     setEditingProduct(product);
+    setMainImageFile(null);
     
     // Fetch product images
     const { data: images } = await supabase
@@ -448,17 +502,18 @@ const Admin = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="image_url">Main Image URL</Label>
+                        <Label htmlFor="main_image">Upload Main Image</Label>
                         <Input
-                          id="image_url"
-                          type="url"
-                          value={editingProduct ? editingProduct.image_url : newProduct.image_url}
-                          onChange={(e) => 
-                            editingProduct 
-                              ? setEditingProduct({ ...editingProduct, image_url: e.target.value })
-                              : setNewProduct({ ...newProduct, image_url: e.target.value })
-                          }
+                          id="main_image"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setMainImageFile(e.target.files?.[0] || null)}
                         />
+                        {editingProduct?.image_url && !mainImageFile && (
+                          <p className="text-sm text-muted-foreground">
+                            Current image will be kept if no new file is selected
+                          </p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <ProductImageManager
@@ -467,8 +522,8 @@ const Admin = () => {
                         />
                       </div>
                     </div>
-                    <Button type="submit" variant="gradient">
-                      {editingProduct ? 'Update Product' : 'Add Product'}
+                    <Button type="submit" variant="gradient" disabled={uploading}>
+                      {uploading ? "Uploading..." : editingProduct ? 'Update Product' : 'Add Product'}
                     </Button>
                   </form>
                 </DialogContent>

@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { X, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 interface ProductImage {
   image_url: string;
@@ -15,18 +17,41 @@ interface ProductImageManagerProps {
 }
 
 export const ProductImageManager = ({ images, onChange }: ProductImageManagerProps) => {
-  const [newImageUrl, setNewImageUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  const addImage = () => {
-    if (!newImageUrl.trim()) return;
-    
-    const newImage: ProductImage = {
-      image_url: newImageUrl,
-      display_order: images.length,
-    };
-    
-    onChange([...images, newImage]);
-    setNewImageUrl('');
+  const addImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = fileName;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      const newImage: ProductImage = {
+        image_url: publicUrl,
+        display_order: images.length,
+      };
+      
+      onChange([...images, newImage]);
+      toast({ title: "Image uploaded successfully" });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   const removeImage = (index: number) => {
@@ -54,24 +79,21 @@ export const ProductImageManager = ({ images, onChange }: ProductImageManagerPro
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Product Images</Label>
-        <div className="flex gap-2">
-          <Input
-            type="url"
-            placeholder="Enter image URL"
-            value={newImageUrl}
-            onChange={(e) => setNewImageUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addImage();
-              }
-            }}
-          />
-          <Button type="button" onClick={addImage} size="sm">
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
+        <Label htmlFor="product-images">Product Images</Label>
+        <Input
+          id="product-images"
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) addImage(file);
+            e.target.value = '';
+          }}
+          disabled={uploading}
+        />
+        {uploading && (
+          <p className="text-sm text-muted-foreground">Uploading...</p>
+        )}
       </div>
 
       {images.length > 0 && (

@@ -25,6 +25,8 @@ export const CategoryManager = () => {
     description: '',
     image_url: '',
   });
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -46,12 +48,34 @@ export const CategoryManager = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploading(true);
 
     try {
+      let imageUrl = formData.image_url;
+
+      // Upload file if selected
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = fileName;
+
+        const { error: uploadError } = await supabase.storage
+          .from('category-images')
+          .upload(filePath, selectedFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('category-images')
+          .getPublicUrl(filePath);
+
+        imageUrl = publicUrl;
+      }
+
       if (editingCategory) {
         const { error } = await supabase
           .from('categories')
-          .update(formData)
+          .update({ ...formData, image_url: imageUrl })
           .eq('id', editingCategory.id);
 
         if (error) throw error;
@@ -59,7 +83,7 @@ export const CategoryManager = () => {
       } else {
         const { error } = await supabase
           .from('categories')
-          .insert(formData);
+          .insert({ ...formData, image_url: imageUrl });
 
         if (error) throw error;
         toast({ title: "Category added successfully" });
@@ -67,6 +91,7 @@ export const CategoryManager = () => {
 
       setFormData({ name: '', description: '', image_url: '' });
       setEditingCategory(null);
+      setSelectedFile(null);
       setDialogOpen(false);
       fetchCategories();
     } catch (error: any) {
@@ -75,6 +100,8 @@ export const CategoryManager = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -102,6 +129,7 @@ export const CategoryManager = () => {
   const openAddDialog = () => {
     setEditingCategory(null);
     setFormData({ name: '', description: '', image_url: '' });
+    setSelectedFile(null);
     setDialogOpen(true);
   };
 
@@ -112,6 +140,7 @@ export const CategoryManager = () => {
       description: category.description || '',
       image_url: category.image_url || '',
     });
+    setSelectedFile(null);
     setDialogOpen(true);
   };
 
@@ -150,16 +179,21 @@ export const CategoryManager = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="image_url">Image URL</Label>
+                <Label htmlFor="image">Upload Image</Label>
                 <Input
-                  id="image_url"
-                  type="url"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 />
+                {formData.image_url && !selectedFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Current image will be kept if no new file is selected
+                  </p>
+                )}
               </div>
-              <Button type="submit" variant="gradient">
-                {editingCategory ? 'Update' : 'Add'} Category
+              <Button type="submit" variant="gradient" disabled={uploading}>
+                {uploading ? "Uploading..." : editingCategory ? 'Update' : 'Add'} Category
               </Button>
             </form>
           </DialogContent>
