@@ -1,15 +1,30 @@
 import { Card } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface CategoryCardProps {
   title: string;
   image: string;
   productCount: number;
+  categoryId?: string;
 }
 
-const CategoryCard = ({ title, image, productCount }: CategoryCardProps) => {
+const CategoryCard = ({ title, image, productCount, categoryId }: CategoryCardProps) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (categoryId) {
+      navigate(`/shop?category=${categoryId}`);
+    } else {
+      navigate('/shop');
+    }
+  };
+
   return (
-    <Card className="group cursor-pointer overflow-hidden border-border hover:border-primary transition-all duration-300 hover:shadow-large">
+    <Card 
+      onClick={handleClick}
+      className="group cursor-pointer overflow-hidden border-border hover:border-primary transition-all duration-300 hover:shadow-large"
+    >
       <div className="relative aspect-square overflow-hidden bg-muted">
         <img
           src={image}

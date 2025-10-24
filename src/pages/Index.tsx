@@ -67,7 +67,13 @@ const Index = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories.map((category) => (
-            <CategoryCard key={category.id} title={category.name} image={category.image_url} productCount={0} />
+            <CategoryCard 
+              key={category.id} 
+              title={category.name} 
+              image={category.image_url} 
+              productCount={0}
+              categoryId={category.id}
+            />
           ))}
         </div>
       </section>

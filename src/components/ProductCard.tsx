@@ -7,6 +7,7 @@ import { useWishlist } from "@/hooks/useWishlist";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface ProductCardProps {
   id?: string;
@@ -34,6 +35,7 @@ const ProductCard = ({
   const { addToWishlist, isInWishlist } = useWishlist();
   const { user } = useAuth();
   const { formatPrice } = useCurrency();
+  const navigate = useNavigate();
 
   const handleAddToCart = async () => {
     if (!id) {
@@ -45,6 +47,11 @@ const ProductCard = ({
       return;
     }
     await addToCart(id, 1);
+  };
+
+  const handleCartClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleAddToCart();
   };
 
   const handleAddToWishlist = async () => {
@@ -59,9 +66,17 @@ const ProductCard = ({
     await addToWishlist(id);
   };
 
+  const handleWishlistClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleAddToWishlist();
+  };
+
   return (
     <Card className="group overflow-hidden border-border hover:border-primary transition-all duration-300 hover:shadow-large">
-      <div className="relative aspect-square overflow-hidden bg-muted">
+      <div 
+        className="relative aspect-square overflow-hidden bg-muted cursor-pointer"
+        onClick={() => id && navigate(`/product/${id}`)}
+      >
         <img
           src={image}
           alt={name}
@@ -76,7 +91,7 @@ const ProductCard = ({
           variant="ghost"
           size="icon"
           className="absolute top-3 right-3 bg-background/80 backdrop-blur hover:bg-background"
-          onClick={handleAddToWishlist}
+          onClick={handleWishlistClick}
         >
           <Heart className={`w-4 h-4 ${id && isInWishlist(id) ? 'fill-primary text-primary' : ''}`} />
         </Button>
@@ -87,7 +102,10 @@ const ProductCard = ({
         )}
       </div>
       <div className="p-4">
-        <h3 className="font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors">
+        <h3 
+          className="font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors cursor-pointer"
+          onClick={() => id && navigate(`/product/${id}`)}
+        >
           {name}
         </h3>
         <div className="flex items-center gap-2 mb-3">
@@ -109,7 +127,7 @@ const ProductCard = ({
               </div>
             )}
           </div>
-          <Button variant="gradient" size="icon" disabled={!inStock} onClick={handleAddToCart}>
+          <Button variant="gradient" size="icon" disabled={!inStock} onClick={handleCartClick}>
             <ShoppingCart className="w-4 h-4" />
           </Button>
         </div>
