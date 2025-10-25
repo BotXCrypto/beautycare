@@ -19,30 +19,36 @@ interface ProductImageManagerProps {
 export const ProductImageManager = ({ images, onChange }: ProductImageManagerProps) => {
   const [uploading, setUploading] = useState(false);
 
-  const addImage = async (file: File) => {
+  const addImages = async (files: FileList) => {
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = fileName;
+      const uploadPromises = Array.from(files).map(async (file, index) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = fileName;
 
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file);
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(filePath, file);
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath);
+        const { data: { publicUrl } } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(filePath);
 
-      const newImage: ProductImage = {
-        image_url: publicUrl,
-        display_order: images.length,
-      };
-      
-      onChange([...images, newImage]);
-      toast({ title: "Image uploaded successfully" });
+        return {
+          image_url: publicUrl,
+          display_order: images.length + index,
+        };
+      });
+
+      const newImages = await Promise.all(uploadPromises);
+      onChange([...images, ...newImages]);
+      toast({ 
+        title: "Images uploaded successfully",
+        description: `${newImages.length} image(s) added`
+      });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -84,9 +90,10 @@ export const ProductImageManager = ({ images, onChange }: ProductImageManagerPro
           id="product-images"
           type="file"
           accept="image/*"
+          multiple
           onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) addImage(file);
+            const files = e.target.files;
+            if (files && files.length > 0) addImages(files);
             e.target.value = '';
           }}
           disabled={uploading}
