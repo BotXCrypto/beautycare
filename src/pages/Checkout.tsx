@@ -26,10 +26,11 @@ const Checkout = () => {
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [paymentType, setPaymentType] = useState<'COD' | 'Online'>('COD');
+  const [paymentType, setPaymentType] = useState<'COD' | 'Banking'>('COD');
   const [cities, setCities] = useState<City[]>([]);
   const [selectedCityId, setSelectedCityId] = useState('');
   const [shippingCost, setShippingCost] = useState(500);
+  const [deliveryDays, setDeliveryDays] = useState('');
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
@@ -87,6 +88,12 @@ const Checkout = () => {
         city: city.name,
         state: city.province,
       });
+      
+      // Set delivery days based on city
+      const isDGKhan = city.name.toLowerCase().includes('dera ghazi khan') || 
+                       city.name.toLowerCase().includes('d.g. khan') ||
+                       city.name.toLowerCase().includes('dg khan');
+      setDeliveryDays(isDGKhan ? '2 days' : '3-4 days');
     }
   };
 
@@ -122,7 +129,7 @@ const Checkout = () => {
           user_id: user.id,
           total: total + shippingCost,
           payment_type: paymentType,
-          payment_status: paymentType === 'Online' ? 'Paid' : 'Pending',
+          payment_status: paymentType === 'Banking' ? 'Pending' : 'Pending',
           status: 'Pending',
           address,
         })
@@ -248,16 +255,33 @@ const Checkout = () => {
 
               <div className="border rounded-lg p-6">
                 <h2 className="text-2xl font-bold mb-4">Payment Method</h2>
-                <RadioGroup value={paymentType} onValueChange={(val) => setPaymentType(val as 'COD' | 'Online')}>
-                  <div className="flex items-center space-x-2">
+                <RadioGroup value={paymentType} onValueChange={(val) => setPaymentType(val as 'COD' | 'Banking')}>
+                  <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent cursor-pointer">
                     <RadioGroupItem value="COD" id="cod" />
-                    <Label htmlFor="cod">Cash on Delivery</Label>
+                    <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                      <div className="font-semibold">Cash on Delivery</div>
+                      <div className="text-sm text-muted-foreground">Pay when you receive your order</div>
+                    </Label>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Online" id="online" />
-                    <Label htmlFor="online">Pay Online</Label>
+                  <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent cursor-pointer">
+                    <RadioGroupItem value="Banking" id="banking" />
+                    <Label htmlFor="banking" className="flex-1 cursor-pointer">
+                      <div className="font-semibold">Online Banking / Stripe</div>
+                      <div className="text-sm text-muted-foreground">Pay securely via bank transfer or card</div>
+                    </Label>
                   </div>
                 </RadioGroup>
+                
+                {deliveryDays && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <p className="text-sm font-semibold mb-1">📦 Estimated Delivery Time</p>
+                    <p className="text-sm text-muted-foreground">
+                      Your order will be delivered within <span className="font-semibold text-foreground">{deliveryDays}</span>
+                      {deliveryDays === '2 days' && ' (DG Khan area)'}
+                      {deliveryDays === '3-4 days' && ' (Outside DG Khan)'}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4">
