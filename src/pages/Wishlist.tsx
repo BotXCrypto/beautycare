@@ -4,11 +4,13 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useCart } from '@/hooks/useCart';
+import { useCurrency } from '@/hooks/useCurrency';
 import { Heart, ShoppingCart } from 'lucide-react';
 
 const Wishlist = () => {
   const { items, loading, removeFromWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const { formatPrice } = useCurrency();
 
   const handleMoveToCart = async (productId: string, wishlistItemId: string) => {
     await addToCart(productId, 1);
@@ -63,10 +65,10 @@ const Wishlist = () => {
                 <h3 className="font-semibold mb-2">{item.product.title}</h3>
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-xl font-bold text-primary">${item.product.price}</div>
+                    <div className="text-xl font-bold text-primary">{formatPrice(item.product.price)}</div>
                     {item.product.original_price && (
                       <div className="text-sm text-muted-foreground line-through">
-                        ${item.product.original_price}
+                        {formatPrice(item.product.original_price)}
                       </div>
                     )}
                   </div>

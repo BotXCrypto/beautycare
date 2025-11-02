@@ -3,10 +3,12 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/hooks/useCart';
+import { useCurrency } from '@/hooks/useCurrency';
 import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
 
 const Cart = () => {
   const { items, loading, total, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { formatPrice } = useCurrency();
 
   if (loading) {
     return (
@@ -60,7 +62,7 @@ const Cart = () => {
                 />
                 <div className="flex-1">
                   <h3 className="font-semibold mb-1">{item.product.title}</h3>
-                  <p className="text-lg font-bold text-primary">${item.product.price}</p>
+                  <p className="text-lg font-bold text-primary">{formatPrice(item.product.price)}</p>
                   
                   <div className="flex items-center gap-2 mt-2">
                     <Button
@@ -92,7 +94,7 @@ const Cart = () => {
                   >
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
-                  <p className="font-bold">${(item.product.price * item.quantity).toFixed(2)}</p>
+                  <p className="font-bold">{formatPrice(item.product.price * item.quantity)}</p>
                 </div>
               </div>
             ))}
@@ -105,15 +107,15 @@ const Cart = () => {
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>${total.toFixed(2)}</span>
+                  <span>{formatPrice(total)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping:</span>
-                  <span>$10.00</span>
+                  <span>{formatPrice(500)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between text-xl font-bold">
                   <span>Total:</span>
-                  <span className="text-primary">${(total + 10).toFixed(2)}</span>
+                  <span className="text-primary">{formatPrice(total + 500)}</span>
                 </div>
               </div>
 

@@ -388,7 +388,7 @@ const Admin = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Revenue</p>
-                <p className="text-2xl font-bold">${stats.revenue.toFixed(2)}</p>
+                <p className="text-2xl font-bold">{formatPrice(stats.revenue)}</p>
               </div>
               <DollarSign className="w-8 h-8 text-primary" />
             </div>
