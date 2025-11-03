@@ -441,6 +441,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_shipping: {
+        Args: { p_city_id: string; p_order_total: number }
+        Returns: {
+          delivery_days: number
+          shipping_cost: number
+        }[]
+      }
       calculate_shipping_cost: {
         Args: { from_zone: number; order_total: number; to_zone: number }
         Returns: number

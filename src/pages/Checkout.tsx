@@ -28,9 +28,11 @@ const Checkout = () => {
   const [loading, setLoading] = useState(false);
   const [paymentType, setPaymentType] = useState<'COD' | 'Banking'>('COD');
   const [cities, setCities] = useState<City[]>([]);
+  const [selectedProvince, setSelectedProvince] = useState('');
   const [selectedCityId, setSelectedCityId] = useState('');
-  const [shippingCost, setShippingCost] = useState(500);
-  const [deliveryDays, setDeliveryDays] = useState('');
+  const [shippingCost, setShippingCost] = useState(0);
+  const [deliveryDays, setDeliveryDays] = useState(0);
+  const [isFreeShipping, setIsFreeShipping] = useState(false);
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
@@ -63,20 +65,32 @@ const Checkout = () => {
   };
 
   const calculateShipping = async () => {
-    const selectedCity = cities.find(c => c.id === selectedCityId);
-    if (!selectedCity) return;
+    if (!selectedCityId) return;
 
-    // Assume origin is from zone 1 (major city)
     const { data, error } = await supabase
-      .rpc('calculate_shipping_cost', {
-        from_zone: 1,
-        to_zone: selectedCity.shipping_zone,
-        order_total: total
+      .rpc('calculate_shipping', {
+        p_city_id: selectedCityId,
+        p_order_total: total
       });
 
-    if (!error && data !== null) {
-      setShippingCost(data);
+    if (!error && data && data.length > 0) {
+      const shippingData = data[0];
+      const calculatedCost = shippingData.shipping_cost;
+      
+      setShippingCost(calculatedCost);
+      setDeliveryDays(shippingData.delivery_days);
+      setIsFreeShipping(total >= 100000 && calculatedCost === 0);
     }
+  };
+
+  const handleProvinceChange = (province: string) => {
+    setSelectedProvince(province);
+    setSelectedCityId('');
+    setAddress({
+      ...address,
+      city: '',
+      state: province,
+    });
   };
 
   const handleCityChange = (cityId: string) => {
@@ -88,14 +102,12 @@ const Checkout = () => {
         city: city.name,
         state: city.province,
       });
-      
-      // Set delivery days based on city
-      const isDGKhan = city.name.toLowerCase().includes('dera ghazi khan') || 
-                       city.name.toLowerCase().includes('d.g. khan') ||
-                       city.name.toLowerCase().includes('dg khan');
-      setDeliveryDays(isDGKhan ? '2 days' : '3-4 days');
     }
   };
+
+  const filteredCities = selectedProvince 
+    ? cities.filter(c => c.province === selectedProvince)
+    : [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,6 +126,15 @@ const Checkout = () => {
       toast({
         title: "Cart is empty",
         description: "Add items to cart before checkout",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedProvince || !selectedCityId) {
+      toast({
+        title: "Location Required",
+        description: "Please select your location to calculate shipping before confirming your order.",
         variant: "destructive",
       });
       return;
@@ -226,16 +247,36 @@ const Checkout = () => {
                       onChange={(e) => setAddress({ ...address, addressLine2: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="city">City *</Label>
-                    <Select value={selectedCityId} onValueChange={handleCityChange} required>
-                      <SelectTrigger id="city">
-                        <SelectValue placeholder="Select your city" />
+                  <div className="space-y-2">
+                    <Label htmlFor="province">Province *</Label>
+                    <Select value={selectedProvince} onValueChange={handleProvinceChange} required>
+                      <SelectTrigger id="province">
+                        <SelectValue placeholder="Select province" />
                       </SelectTrigger>
                       <SelectContent>
-                        {cities.map((city) => (
+                        <SelectItem value="Punjab">Punjab</SelectItem>
+                        <SelectItem value="Sindh">Sindh</SelectItem>
+                        <SelectItem value="KPK">KPK</SelectItem>
+                        <SelectItem value="Balochistan">Balochistan</SelectItem>
+                        <SelectItem value="Gilgit-Baltistan">Gilgit-Baltistan</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City *</Label>
+                    <Select 
+                      value={selectedCityId} 
+                      onValueChange={handleCityChange} 
+                      required
+                      disabled={!selectedProvince}
+                    >
+                      <SelectTrigger id="city">
+                        <SelectValue placeholder={selectedProvince ? "Select your city" : "Select province first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredCities.map((city) => (
                           <SelectItem key={city.id} value={city.id}>
-                            {city.name}, {city.province}
+                            {city.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -272,13 +313,11 @@ const Checkout = () => {
                   </div>
                 </RadioGroup>
                 
-                {deliveryDays && (
+                {deliveryDays > 0 && (
                   <div className="mt-4 p-4 bg-muted rounded-lg">
                     <p className="text-sm font-semibold mb-1">📦 Estimated Delivery Time</p>
                     <p className="text-sm text-muted-foreground">
-                      Your order will be delivered within <span className="font-semibold text-foreground">{deliveryDays}</span>
-                      {deliveryDays === '2 days' && ' (DG Khan area)'}
-                      {deliveryDays === '3-4 days' && ' (Outside DG Khan)'}
+                      Your order will be delivered within <span className="font-semibold text-foreground">{deliveryDays} days</span>
                     </p>
                   </div>
                 )}
@@ -288,7 +327,12 @@ const Checkout = () => {
                 <Button type="button" variant="outline" onClick={() => navigate('/cart')}>
                   Back to Cart
                 </Button>
-                <Button type="submit" variant="gradient" disabled={loading} className="flex-1">
+                <Button 
+                  type="submit" 
+                  variant="gradient" 
+                  disabled={loading || !selectedProvince || !selectedCityId} 
+                  className="flex-1"
+                >
                   {loading ? 'Processing...' : 'Place Order'}
                 </Button>
               </div>
@@ -316,16 +360,18 @@ const Checkout = () => {
                 <div className="flex justify-between">
                   <span>Shipping:</span>
                   <span>
-                    {shippingCost === 0 ? (
+                    {!selectedCityId ? (
+                      <span className="text-muted-foreground text-sm">Select location</span>
+                    ) : shippingCost === 0 ? (
                       <span className="text-green-600 font-semibold">FREE</span>
                     ) : (
                       formatPrice(shippingCost)
                     )}
                   </span>
                 </div>
-                {shippingCost === 0 && total >= 100000 && (
-                  <div className="text-xs text-green-600">
-                    🎉 Free shipping on orders above ₨100,000!
+                {isFreeShipping && (
+                  <div className="text-xs text-green-600 font-semibold">
+                    🎉 Free Shipping Applied - Orders ≥ {formatPrice(100000)} ship free!
                   </div>
                 )}
                 <div className="border-t pt-2 flex justify-between text-xl font-bold">
