@@ -1,113 +1,60 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-interface City {
-  id: string;
-  name: string;
-  province: string;
-  shipping_zone: number;
-}
-
 const Checkout = () => {
   const { items, total, clearCart } = useCart();
   const { user } = useAuth();
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [paymentType, setPaymentType] = useState<'COD' | 'Banking'>('COD');
-  const [cities, setCities] = useState<City[]>([]);
-  const [selectedProvince, setSelectedProvince] = useState('');
-  const [selectedCityId, setSelectedCityId] = useState('');
-  const [shippingCost, setShippingCost] = useState(0);
-  const [deliveryDays, setDeliveryDays] = useState(0);
-  const [isFreeShipping, setIsFreeShipping] = useState(false);
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
     addressLine1: '',
     addressLine2: '',
-    city: '',
-    state: '',
     postalCode: '',
   });
 
+  // Get location data from Cart page
+  const locationState = location.state as {
+    province?: string;
+    cityId?: string;
+    cityName?: string;
+    shippingCost?: number;
+    deliveryDays?: number;
+  } | null;
+
+  const province = locationState?.province || '';
+  const cityId = locationState?.cityId || '';
+  const cityName = locationState?.cityName || '';
+  const shippingCost = locationState?.shippingCost || 0;
+  const deliveryDays = locationState?.deliveryDays || 0;
+  const isFreeShipping = shippingCost === 0 && total >= 100000;
+
+  // Redirect to cart if no location selected
   useEffect(() => {
-    fetchCities();
-  }, []);
-
-  useEffect(() => {
-    if (selectedCityId) {
-      calculateShipping();
-    }
-  }, [selectedCityId, total]);
-
-  const fetchCities = async () => {
-    const { data } = await supabase
-      .from('cities')
-      .select('*')
-      .order('name');
-    
-    if (data) {
-      setCities(data);
-    }
-  };
-
-  const calculateShipping = async () => {
-    if (!selectedCityId) return;
-
-    const { data, error } = await supabase
-      .rpc('calculate_shipping', {
-        p_city_id: selectedCityId,
-        p_order_total: total
+    if (!province || !cityId) {
+      toast({
+        title: "Location Required",
+        description: "Please select your location from the cart page",
+        variant: "destructive",
       });
-
-    if (!error && data && data.length > 0) {
-      const shippingData = data[0];
-      const calculatedCost = shippingData.shipping_cost;
-      
-      setShippingCost(calculatedCost);
-      setDeliveryDays(shippingData.delivery_days);
-      setIsFreeShipping(total >= 100000 && calculatedCost === 0);
+      navigate('/cart');
     }
-  };
-
-  const handleProvinceChange = (province: string) => {
-    setSelectedProvince(province);
-    setSelectedCityId('');
-    setAddress({
-      ...address,
-      city: '',
-      state: province,
-    });
-  };
-
-  const handleCityChange = (cityId: string) => {
-    const city = cities.find(c => c.id === cityId);
-    if (city) {
-      setSelectedCityId(cityId);
-      setAddress({
-        ...address,
-        city: city.name,
-        state: city.province,
-      });
-    }
-  };
-
-  const filteredCities = selectedProvince 
-    ? cities.filter(c => c.province === selectedProvince)
-    : [];
+  }, [province, cityId, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,19 +78,10 @@ const Checkout = () => {
       return;
     }
 
-    if (!selectedProvince || !selectedCityId) {
-      toast({
-        title: "Location Required",
-        description: "Please select your location to calculate shipping before confirming your order.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Create order
+      // Create order with location data
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -152,7 +90,11 @@ const Checkout = () => {
           payment_type: paymentType,
           payment_status: paymentType === 'Banking' ? 'Pending' : 'Pending',
           status: 'Pending',
-          address,
+          address: {
+            ...address,
+            province: province,
+            city: cityName,
+          },
         })
         .select()
         .single();
@@ -248,41 +190,6 @@ const Checkout = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="province">Province *</Label>
-                    <Select value={selectedProvince} onValueChange={handleProvinceChange} required>
-                      <SelectTrigger id="province">
-                        <SelectValue placeholder="Select province" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Punjab">Punjab</SelectItem>
-                        <SelectItem value="Sindh">Sindh</SelectItem>
-                        <SelectItem value="KPK">KPK</SelectItem>
-                        <SelectItem value="Balochistan">Balochistan</SelectItem>
-                        <SelectItem value="Gilgit-Baltistan">Gilgit-Baltistan</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City *</Label>
-                    <Select 
-                      value={selectedCityId} 
-                      onValueChange={handleCityChange} 
-                      required
-                      disabled={!selectedProvince}
-                    >
-                      <SelectTrigger id="city">
-                        <SelectValue placeholder={selectedProvince ? "Select your city" : "Select province first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredCities.map((city) => (
-                          <SelectItem key={city.id} value={city.id}>
-                            {city.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
                     <Label htmlFor="postalCode">Postal Code *</Label>
                     <Input
                       id="postalCode"
@@ -291,6 +198,21 @@ const Checkout = () => {
                       onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
                     />
                   </div>
+                </div>
+                
+                <div className="mt-4 bg-muted/50 p-4 rounded-lg">
+                  <h3 className="font-semibold mb-2">Delivery Location</h3>
+                  <p className="text-sm">
+                    <span className="font-medium">Province:</span> {province}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-medium">City:</span> {cityName}
+                  </p>
+                  {deliveryDays > 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Estimated delivery: {deliveryDays} days
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -312,16 +234,8 @@ const Checkout = () => {
                     </Label>
                   </div>
                 </RadioGroup>
-                
-                {deliveryDays > 0 && (
-                  <div className="mt-4 p-4 bg-muted rounded-lg">
-                    <p className="text-sm font-semibold mb-1">📦 Estimated Delivery Time</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your order will be delivered within <span className="font-semibold text-foreground">{deliveryDays} days</span>
-                    </p>
-                  </div>
-                )}
               </div>
+
 
               <div className="flex gap-4">
                 <Button type="button" variant="outline" onClick={() => navigate('/cart')}>
@@ -330,7 +244,7 @@ const Checkout = () => {
                 <Button 
                   type="submit" 
                   variant="gradient" 
-                  disabled={loading || !selectedProvince || !selectedCityId} 
+                  disabled={loading} 
                   className="flex-1"
                 >
                   {loading ? 'Processing...' : 'Place Order'}
@@ -360,9 +274,7 @@ const Checkout = () => {
                 <div className="flex justify-between">
                   <span>Shipping:</span>
                   <span>
-                    {!selectedCityId ? (
-                      <span className="text-muted-foreground text-sm">Select location</span>
-                    ) : shippingCost === 0 ? (
+                    {shippingCost === 0 ? (
                       <span className="text-green-600 font-semibold">FREE</span>
                     ) : (
                       formatPrice(shippingCost)
