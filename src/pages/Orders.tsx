@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -20,6 +21,7 @@ interface Order {
 
 const Orders = () => {
   const { user } = useAuth();
+  const { formatPrice } = useCurrency();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -102,7 +104,7 @@ const Orders = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total</p>
-                    <p className="text-xl font-bold text-primary">${order.total}</p>
+                    <p className="text-xl font-bold text-primary">{formatPrice(order.total)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Status</p>
