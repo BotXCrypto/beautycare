@@ -39,6 +39,9 @@ const Navbar = () => {
             <Link to="/shop" className="text-sm font-medium hover:text-primary transition-colors">
               Shop
             </Link>
+            <Link to="/chatbot" className="text-sm font-medium hover:text-primary transition-colors">
+              AI Assistant
+            </Link>
           </div>
 
           {/* Search Bar - Hidden on mobile */}
