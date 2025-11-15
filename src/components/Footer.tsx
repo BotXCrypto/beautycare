@@ -72,8 +72,13 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/shipping" className="hover:text-primary transition-colors">
-                  Shipping Info
+                <Link to="/about" className="hover:text-primary transition-colors">
+                  About Us
+                </Link>
+              </li>
+              <li>
+                <Link to="/blog" className="hover:text-primary transition-colors">
+                  Blog
                 </Link>
               </li>
               <li>
@@ -109,8 +114,13 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/admin" className="hover:text-primary transition-colors">
-                  Admin Panel
+                <Link to="/privacy" className="hover:text-primary transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms" className="hover:text-primary transition-colors">
+                  Terms of Service
                 </Link>
               </li>
             </ul>

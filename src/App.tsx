@@ -19,6 +19,11 @@ import Admin from "./pages/Admin";
 import Contact from "./pages/Contact";
 import Returns from "./pages/Returns";
 import FAQ from "./pages/FAQ";
+import About from "./pages/About";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Terms from "./pages/Terms";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
 import ProductDetail from "./pages/ProductDetail";
 import Earnings from "./pages/Earnings";
 import NotFound from "./pages/NotFound";
@@ -48,6 +53,11 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/returns" element={<Returns />} />
             <Route path="/faq" element={<FAQ />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:id" element={<BlogPost />} />
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/earnings" element={<Earnings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
