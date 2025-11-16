@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Send, Bot, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Send, Bot, User, Plus, MessageSquare, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useConversations } from "@/hooks/useConversations";
+import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
@@ -17,8 +19,25 @@ const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const {
+    conversations,
+    loading: conversationsLoading,
+    createConversation,
+    saveMessage,
+    loadMessages,
+    deleteConversation,
+  } = useConversations(user?.id);
+
+  useEffect(() => {
+    if (!user) {
+      navigate("/auth");
+    }
+  }, [user, navigate]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -32,6 +51,18 @@ const Chatbot = () => {
     const newMessages = [...messages, { role: "user" as const, content: userMessage }];
     setMessages(newMessages);
     setIsLoading(true);
+
+    // Create or use existing conversation
+    let conversationId = currentConversationId;
+    if (!conversationId && user) {
+      conversationId = await createConversation(userMessage);
+      setCurrentConversationId(conversationId);
+    }
+
+    // Save user message
+    if (conversationId && user) {
+      await saveMessage(conversationId, "user", userMessage);
+    }
 
     try {
       const response = await fetch(
@@ -91,6 +122,11 @@ const Chatbot = () => {
         }
       }
 
+      // Save assistant message
+      if (conversationId && user && assistantContent) {
+        await saveMessage(conversationId, "assistant", assistantContent);
+      }
+
       setIsLoading(false);
     } catch (error) {
       console.error("Chat error:", error);
@@ -101,6 +137,24 @@ const Chatbot = () => {
       });
       setMessages(newMessages.slice(0, -1));
       setIsLoading(false);
+    }
+  };
+
+  const startNewConversation = () => {
+    setMessages([]);
+    setCurrentConversationId(null);
+  };
+
+  const loadConversation = async (conversationId: string) => {
+    const loadedMessages = await loadMessages(conversationId);
+    setMessages(loadedMessages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })));
+    setCurrentConversationId(conversationId);
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    await deleteConversation(conversationId);
+    if (currentConversationId === conversationId) {
+      startNewConversation();
     }
   };
 
@@ -117,15 +171,69 @@ const Chatbot = () => {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">AI Shopping Assistant</h1>
-            <p className="text-muted-foreground">
-              Ask me anything about products, orders, or get recommendations!
-            </p>
+        <div className="max-w-7xl mx-auto flex gap-4">
+          {/* Sidebar */}
+          <div className="w-64 flex-shrink-0">
+            <Card className="p-4 h-[600px] flex flex-col">
+              <Button
+                onClick={startNewConversation}
+                className="w-full mb-4"
+                variant="default"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Chat
+              </Button>
+              
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {conversationsLoading ? (
+                  <p className="text-sm text-muted-foreground text-center">Loading...</p>
+                ) : conversations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center">No conversations yet</p>
+                ) : (
+                  conversations.map((conv) => (
+                    <div
+                      key={conv.id}
+                      className={`p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors group ${
+                        currentConversationId === conv.id ? "bg-accent" : ""
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <MessageSquare className="w-4 h-4 mt-1 flex-shrink-0" />
+                        <div className="flex-1 min-w-0" onClick={() => loadConversation(conv.id)}>
+                          <p className="text-sm font-medium truncate">{conv.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(conv.updated_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteConversation(conv.id);
+                          }}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
           </div>
 
-          <Card className="h-[600px] flex flex-col">
+          {/* Main Chat Area */}
+          <div className="flex-1">
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold mb-4">AI Shopping Assistant</h1>
+              <p className="text-muted-foreground">
+                Ask me anything about products, orders, or get recommendations!
+              </p>
+            </div>
+
+            <Card className="h-[600px] flex flex-col">
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {messages.length === 0 && (
                 <div className="text-center text-muted-foreground py-20">
@@ -195,7 +303,8 @@ const Chatbot = () => {
                 </Button>
               </div>
             </form>
-          </Card>
+            </Card>
+          </div>
         </div>
       </main>
       <Footer />
