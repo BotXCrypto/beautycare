@@ -1,26 +1,26 @@
-import { Truck, Shield, CreditCard, Headphones } from "lucide-react";
+import { Truck, Shield, Leaf, Headphones } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 const features = [
   {
     icon: Truck,
     title: "Free Delivery",
-    description: "On orders over ₨100,000",
+    description: "On orders over ₨10,000",
   },
   {
     icon: Shield,
-    title: "Secure Payment",
-    description: "100% secure transactions",
+    title: "Dermatologist Tested",
+    description: "Safe for all skin types",
   },
   {
-    icon: CreditCard,
-    title: "Easy Returns",
-    description: "30-day money back",
+    icon: Leaf,
+    title: "Natural Ingredients",
+    description: "Clean beauty formulas",
   },
   {
     icon: Headphones,
-    title: "24/7 Support",
-    description: "Dedicated customer service",
+    title: "Skin Consultation",
+    description: "Expert beauty advice",
   },
 ];
 

@@ -10,14 +10,14 @@ const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-10 h-10 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xl">E</span>
+                <span className="text-primary-foreground font-bold text-xl">G</span>
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                ElectroShop
+                GlowSkin
               </span>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Your trusted source for premium electronics and home appliances.
+              Your trusted source for premium skincare and beauty products.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
@@ -40,23 +40,23 @@ const Footer = () => {
             <h3 className="font-semibold mb-4">Shop</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link to="/category/ac" className="hover:text-primary transition-colors">
-                  Air Conditioners
+                <Link to="/shop" className="hover:text-primary transition-colors">
+                  Cleansers
                 </Link>
               </li>
               <li>
-                <Link to="/category/tv" className="hover:text-primary transition-colors">
-                  TVs & Displays
+                <Link to="/shop" className="hover:text-primary transition-colors">
+                  Serums
                 </Link>
               </li>
               <li>
-                <Link to="/category/iron" className="hover:text-primary transition-colors">
-                  Home Appliances
+                <Link to="/shop" className="hover:text-primary transition-colors">
+                  Moisturizers
                 </Link>
               </li>
               <li>
-                <Link to="/category/remote" className="hover:text-primary transition-colors">
-                  Accessories
+                <Link to="/shop" className="hover:text-primary transition-colors">
+                  Sunscreens
                 </Link>
               </li>
             </ul>
@@ -128,7 +128,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 ElectroShop. All rights reserved.</p>
+          <p>&copy; 2025 GlowSkin. All rights reserved.</p>
         </div>
       </div>
     </footer>
