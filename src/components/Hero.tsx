@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import heroImage from "@/assets/hero-electronics.jpg";
+import heroImage from "@/assets/hero-skincare.jpg";
 
 const Hero = () => {
   return (
@@ -10,7 +10,7 @@ const Hero = () => {
       <div className="absolute inset-0 z-0">
         <img
           src={heroImage}
-          alt="Modern electronics and home appliances"
+          alt="Premium skincare products and serums"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
@@ -20,14 +20,14 @@ const Hero = () => {
       <div className="container mx-auto px-4 py-20 relative z-10">
         <div className="max-w-2xl">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            Premium Electronics
+            Radiant Skincare
             <span className="block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              For Your Home
+              For Your Glow
             </span>
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-xl">
-            Discover the latest in home electronics. From air conditioners to smart TVs,
-            find everything you need at unbeatable prices.
+            Discover premium skincare essentials. From serums to moisturizers,
+            find everything you need for healthy, glowing skin.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Button variant="hero" size="lg" className="group" asChild>
