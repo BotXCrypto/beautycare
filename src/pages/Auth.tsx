@@ -6,27 +6,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Sparkles, Phone, Mail, ArrowLeft, Loader2 } from 'lucide-react';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-type AuthMode = 'login' | 'signup' | 'phone' | 'verify-otp' | 'forgot-password' | 'reset-password';
+type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, signInWithGoogle, user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
-      // Route based on role
       if (isAdmin) {
         navigate('/admin');
       } else {
@@ -69,57 +65,6 @@ const Auth = () => {
       await signInWithGoogle();
     } catch (error) {
       console.error('Google auth error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePhoneSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
-      if (error) throw error;
-      toast({
-        title: "OTP Sent!",
-        description: "Check your phone for the verification code.",
-      });
-      setMode('verify-otp');
-    } catch (error: any) {
-      toast({
-        title: "Failed to send OTP",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
-      const { error } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: otp,
-        type: 'sms',
-      });
-      if (error) throw error;
-      toast({
-        title: "Welcome!",
-        description: "You've successfully logged in.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
-        description: error.message,
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
@@ -172,7 +117,6 @@ const Auth = () => {
     }
   };
 
-  // Check for reset password mode from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('mode') === 'reset-password') {
@@ -269,65 +213,6 @@ const Auth = () => {
           </form>
         );
 
-      case 'phone':
-        return (
-          <form onSubmit={handlePhoneSignIn} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                placeholder="+92 300 1234567"
-              />
-              <p className="text-xs text-muted-foreground">
-                Include country code (e.g., +92 for Pakistan)
-              </p>
-            </div>
-            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Send OTP
-            </Button>
-          </form>
-        );
-
-      case 'verify-otp':
-        return (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Enter OTP</Label>
-              <div className="flex justify-center">
-                <InputOTP maxLength={6} value={otp} onChange={(value) => setOtp(value)}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-              <p className="text-xs text-muted-foreground text-center">
-                Enter the 6-digit code sent to {phone}
-              </p>
-            </div>
-            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading || otp.length !== 6}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Verify
-            </Button>
-            <button
-              type="button"
-              onClick={() => setMode('phone')}
-              className="text-sm text-primary hover:underline w-full text-center"
-            >
-              Resend OTP
-            </button>
-          </form>
-        );
-
       case 'forgot-password':
         return (
           <form onSubmit={handleForgotPassword} className="space-y-4">
@@ -379,10 +264,6 @@ const Auth = () => {
         return 'Welcome Back';
       case 'signup':
         return 'Create Account';
-      case 'phone':
-        return 'Phone Login';
-      case 'verify-otp':
-        return 'Verify OTP';
       case 'forgot-password':
         return 'Reset Password';
       case 'reset-password':
@@ -400,7 +281,7 @@ const Auth = () => {
           </h1>
         </div>
 
-        {(mode === 'phone' || mode === 'verify-otp' || mode === 'forgot-password') && (
+        {mode === 'forgot-password' && (
           <button
             onClick={() => setMode('login')}
             className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -449,17 +330,6 @@ const Auth = () => {
                   />
                 </svg>
                 Continue with Google
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setMode('phone')}
-                disabled={loading}
-              >
-                <Phone className="w-5 h-5 mr-2" />
-                Continue with Phone
               </Button>
             </div>
           </>
