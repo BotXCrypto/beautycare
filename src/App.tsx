@@ -27,6 +27,8 @@ import BlogPost from "./pages/BlogPost";
 import ProductDetail from "./pages/ProductDetail";
 import Earnings from "./pages/Earnings";
 import Chatbot from "./pages/Chatbot";
+import Bundles from "./pages/Bundles";
+import BundleDetail from "./pages/BundleDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,7 +64,8 @@ const App = () => (
             <Route path="/product/:id" element={<ProductDetail />} />
             <Route path="/earnings" element={<Earnings />} />
           <Route path="/chatbot" element={<Chatbot />} />
-          <Route path="/auth" element={<Auth />} />
+          <Route path="/bundles" element={<Bundles />} />
+          <Route path="/bundle/:id" element={<BundleDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
             </Routes>

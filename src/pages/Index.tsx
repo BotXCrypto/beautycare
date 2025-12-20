@@ -5,6 +5,7 @@ import Hero from "@/components/Hero";
 import CategoryCard from "@/components/CategoryCard";
 import ProductCard from "@/components/ProductCard";
 import Features from "@/components/Features";
+import BundlesSection from "@/components/BundlesSection";
 import Footer from "@/components/Footer";
 
 interface Category {
@@ -77,6 +78,9 @@ const Index = () => {
           ))}
         </div>
       </section>
+
+      {/* Gift Sets & Bundles Section */}
+      <BundlesSection />
 
       {/* Featured Products Section */}
       <section className="container mx-auto px-4 py-16 bg-muted/30">
