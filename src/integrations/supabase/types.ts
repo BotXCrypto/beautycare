@@ -416,6 +416,65 @@ export type Database = {
           },
         ]
       }
+      product_variants: {
+        Row: {
+          barcode: string | null
+          created_at: string | null
+          display_order: number | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          original_price: number | null
+          price: number
+          product_id: string
+          sku: string | null
+          stock: number
+          variant_name: string
+          variant_type: string
+          variant_value: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          original_price?: number | null
+          price: number
+          product_id: string
+          sku?: string | null
+          stock?: number
+          variant_name: string
+          variant_type: string
+          variant_value?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          original_price?: number | null
+          price?: number
+          product_id?: string
+          sku?: string | null
+          stock?: number
+          variant_name?: string
+          variant_type?: string
+          variant_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           brand: string | null
@@ -424,6 +483,7 @@ export type Database = {
           description: string | null
           id: string
           image_url: string | null
+          low_stock_threshold: number | null
           original_price: number | null
           price: number
           rating: number | null
@@ -437,6 +497,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          low_stock_threshold?: number | null
           original_price?: number | null
           price: number
           rating?: number | null
@@ -450,6 +511,7 @@ export type Database = {
           description?: string | null
           id?: string
           image_url?: string | null
+          low_stock_threshold?: number | null
           original_price?: number | null
           price?: number
           rating?: number | null

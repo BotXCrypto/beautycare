@@ -10,6 +10,8 @@ import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/hooks/useWishlist';
 import { useCurrency } from '@/hooks/useCurrency';
 import { toast } from '@/hooks/use-toast';
+import { VariantSelector } from '@/components/product/VariantSelector';
+import { StockBadge } from '@/components/product/StockBadge';
 
 interface Product {
   id: string;
@@ -21,6 +23,7 @@ interface Product {
   rating?: number;
   stock: number;
   image_url?: string;
+  low_stock_threshold?: number;
 }
 
 interface ProductImage {
@@ -29,11 +32,25 @@ interface ProductImage {
   display_order: number;
 }
 
+interface Variant {
+  id: string;
+  variant_type: string;
+  variant_name: string;
+  variant_value?: string;
+  image_url?: string;
+  price: number;
+  original_price?: number;
+  stock: number;
+  is_active: boolean;
+}
+
 const ProductDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [product, setProduct] = useState<Product | null>(null);
   const [images, setImages] = useState<ProductImage[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
@@ -44,6 +61,7 @@ const ProductDetail = () => {
     if (id) {
       fetchProduct();
       fetchImages();
+      fetchVariants();
     }
   }, [id]);
 
@@ -84,8 +102,46 @@ const ProductDetail = () => {
     }
   };
 
+  const fetchVariants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', id)
+        .eq('is_active', true)
+        .order('display_order');
+
+      if (error) throw error;
+      setVariants(data || []);
+      // Auto-select first variant if available
+      if (data && data.length > 0) {
+        const firstInStock = data.find(v => v.stock > 0) || data[0];
+        setSelectedVariant(firstInStock);
+        if (firstInStock.image_url) {
+          setSelectedImage(firstInStock.image_url);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching variants:', error);
+    }
+  };
+
+  const handleVariantSelect = (variant: Variant) => {
+    setSelectedVariant(variant);
+    if (variant.image_url) {
+      setSelectedImage(variant.image_url);
+    }
+  };
+
   const handleAddToCart = async () => {
     if (!product?.id) return;
+    
+    const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+    if (currentStock === 0) {
+      toast({ title: 'This item is out of stock', variant: 'destructive' });
+      return;
+    }
+    
     await addToCart(product.id, 1);
   };
 
@@ -94,8 +150,13 @@ const ProductDetail = () => {
     await addToWishlist(product.id);
   };
 
-  const discount = product?.original_price 
-    ? Math.round(((product.original_price - product.price) / product.original_price) * 100)
+  // Use variant price/stock if selected, otherwise product price/stock
+  const displayPrice = selectedVariant ? selectedVariant.price : product?.price || 0;
+  const displayOriginalPrice = selectedVariant ? selectedVariant.original_price : product?.original_price;
+  const displayStock = selectedVariant ? selectedVariant.stock : product?.stock || 0;
+
+  const discount = displayOriginalPrice 
+    ? Math.round(((displayOriginalPrice - displayPrice) / displayOriginalPrice) * 100)
     : 0;
 
   if (loading) {
@@ -225,21 +286,30 @@ const ProductDetail = () => {
                   ({product.rating || 0})
                 </span>
               </div>
-              <Badge variant={product.stock > 0 ? 'default' : 'destructive'}>
-                {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
-              </Badge>
+              <StockBadge stock={displayStock} lowStockThreshold={product.low_stock_threshold} />
             </div>
 
             <div className="space-y-2">
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold">{formatPrice(product.price)}</span>
-                {product.original_price && (
+                <span className="text-3xl font-bold">{formatPrice(displayPrice)}</span>
+                {displayOriginalPrice && (
                   <span className="text-xl text-muted-foreground line-through">
-                    {formatPrice(product.original_price)}
+                    {formatPrice(displayOriginalPrice)}
                   </span>
                 )}
               </div>
             </div>
+
+            {/* Variant Selector */}
+            {variants.length > 0 && (
+              <div className="border rounded-lg p-4">
+                <VariantSelector
+                  variants={variants}
+                  selectedVariant={selectedVariant}
+                  onSelect={handleVariantSelect}
+                />
+              </div>
+            )}
 
             {product.description && (
               <div className="space-y-2">
@@ -255,10 +325,10 @@ const ProductDetail = () => {
                 size="lg"
                 className="flex-1"
                 onClick={handleAddToCart}
-                disabled={product.stock === 0}
+                disabled={displayStock === 0}
               >
                 <ShoppingCart className="w-5 h-5 mr-2" />
-                Add to Cart
+                {displayStock === 0 ? 'Out of Stock' : 'Add to Cart'}
               </Button>
               <Button
                 size="lg"
