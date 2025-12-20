@@ -39,6 +39,9 @@ const Navbar = () => {
             <Link to="/shop" className="text-sm font-medium hover:text-primary transition-colors">
               Shop
             </Link>
+            <Link to="/bundles" className="text-sm font-medium hover:text-primary transition-colors">
+              Gift Sets
+            </Link>
             <Link to="/chatbot" className="text-sm font-medium hover:text-primary transition-colors">
               AI Assistant
             </Link>
