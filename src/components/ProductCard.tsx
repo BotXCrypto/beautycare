@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCurrency } from "@/hooks/useCurrency";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { StockBadge } from "@/components/product/StockBadge";
 
 interface ProductCardProps {
   id?: string;
@@ -16,7 +17,8 @@ interface ProductCardProps {
   originalPrice?: number;
   image: string;
   rating?: number;
-  inStock?: boolean;
+  stock?: number;
+  lowStockThreshold?: number;
 }
 
 const ProductCard = ({
@@ -26,8 +28,10 @@ const ProductCard = ({
   originalPrice,
   image,
   rating = 4.5,
-  inStock = true,
+  stock = 10,
+  lowStockThreshold = 5,
 }: ProductCardProps) => {
+  const inStock = stock > 0;
   const discount = originalPrice
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
     : 0;

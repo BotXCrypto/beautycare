@@ -16,6 +16,9 @@ import { toast } from '@/hooks/use-toast';
 import { Package, ShoppingCart, Users, DollarSign, Pencil, Trash2, Plus } from 'lucide-react';
 import { CategoryManager } from '@/components/admin/CategoryManager';
 import { ProductImageManager } from '@/components/admin/ProductImageManager';
+import { VariantManager } from '@/components/admin/VariantManager';
+import { QRScanner } from '@/components/admin/QRScanner';
+import { StockBadge } from '@/components/product/StockBadge';
 
 interface Product {
   id: string;
@@ -26,11 +29,27 @@ interface Product {
   stock: number;
   image_url: string;
   brand: string;
+  low_stock_threshold?: number;
 }
 
 interface ProductImage {
   image_url: string;
   display_order: number;
+}
+
+interface Variant {
+  id?: string;
+  variant_type: 'color' | 'type' | 'size';
+  variant_name: string;
+  variant_value?: string;
+  image_url?: string;
+  price: number;
+  original_price?: number;
+  stock: number;
+  sku?: string;
+  barcode?: string;
+  display_order: number;
+  is_active: boolean;
 }
 
 const Admin = () => {
@@ -51,6 +70,7 @@ const Admin = () => {
     brand: '',
   });
   const [productImages, setProductImages] = useState<ProductImage[]>([]);
+  const [productVariants, setProductVariants] = useState<Variant[]>([]);
   const [mainImageFile, setMainImageFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -171,6 +191,30 @@ const Admin = () => {
         if (imagesError) throw imagesError;
       }
 
+      // Insert product variants
+      if (productVariants.length > 0 && productData) {
+        const variantInserts = productVariants.map((v) => ({
+          product_id: productData.id,
+          variant_type: v.variant_type,
+          variant_name: v.variant_name,
+          variant_value: v.variant_value,
+          image_url: v.image_url,
+          price: v.price,
+          original_price: v.original_price,
+          stock: v.stock,
+          sku: v.sku,
+          barcode: v.barcode,
+          display_order: v.display_order,
+          is_active: v.is_active,
+        }));
+
+        const { error: variantsError } = await supabase
+          .from('product_variants')
+          .insert(variantInserts);
+
+        if (variantsError) throw variantsError;
+      }
+
       toast({
         title: "Product added",
         description: "Product has been added successfully",
@@ -186,6 +230,7 @@ const Admin = () => {
         brand: '',
       });
       setProductImages([]);
+      setProductVariants([]);
       setMainImageFile(null);
       
       fetchStats();
@@ -265,6 +310,36 @@ const Admin = () => {
         if (imagesError) throw imagesError;
       }
 
+      // Delete existing variants
+      await supabase
+        .from('product_variants')
+        .delete()
+        .eq('product_id', editingProduct.id);
+
+      // Insert new variants
+      if (productVariants.length > 0) {
+        const variantInserts = productVariants.map((v) => ({
+          product_id: editingProduct.id,
+          variant_type: v.variant_type,
+          variant_name: v.variant_name,
+          variant_value: v.variant_value,
+          image_url: v.image_url,
+          price: v.price,
+          original_price: v.original_price,
+          stock: v.stock,
+          sku: v.sku,
+          barcode: v.barcode,
+          display_order: v.display_order,
+          is_active: v.is_active,
+        }));
+
+        const { error: variantsError } = await supabase
+          .from('product_variants')
+          .insert(variantInserts);
+
+        if (variantsError) throw variantsError;
+      }
+
       toast({
         title: "Product updated",
         description: "Product has been updated successfully",
@@ -272,6 +347,7 @@ const Admin = () => {
 
       setEditingProduct(null);
       setProductImages([]);
+      setProductVariants([]);
       setMainImageFile(null);
       fetchProducts();
       setDialogOpen(false);
@@ -325,6 +401,7 @@ const Admin = () => {
       brand: '',
     });
     setProductImages([]);
+    setProductVariants([]);
     setMainImageFile(null);
     setDialogOpen(true);
   };
@@ -341,7 +418,44 @@ const Admin = () => {
       .order('display_order');
     
     setProductImages(images || []);
+
+    // Fetch product variants
+    const { data: variants } = await supabase
+      .from('product_variants')
+      .select('*')
+      .eq('product_id', product.id)
+      .order('display_order');
+    
+    setProductVariants((variants || []).map(v => ({
+      ...v,
+      variant_type: v.variant_type as 'color' | 'type' | 'size'
+    })));
     setDialogOpen(true);
+  };
+
+  const handleBarcodeScanned = (barcode: string) => {
+    // Auto-fill barcode in the first empty variant or create new one
+    if (productVariants.length === 0) {
+      setProductVariants([{
+        variant_type: 'type',
+        variant_name: '',
+        variant_value: '',
+        image_url: '',
+        price: 0,
+        stock: 0,
+        barcode: barcode,
+        display_order: 0,
+        is_active: true,
+      }]);
+    } else {
+      // Find first variant without barcode
+      const emptyIndex = productVariants.findIndex(v => !v.barcode);
+      if (emptyIndex >= 0) {
+        const updated = [...productVariants];
+        updated[emptyIndex].barcode = barcode;
+        setProductVariants(updated);
+      }
+    }
   };
 
   if (!isAdmin) {
@@ -521,6 +635,19 @@ const Admin = () => {
                           onChange={setProductImages}
                         />
                       </div>
+                      <div className="md:col-span-2 pt-4 border-t">
+                        <div className="flex items-center gap-4 mb-4">
+                          <QRScanner onScan={handleBarcodeScanned} />
+                          <span className="text-sm text-muted-foreground">
+                            Scan product barcode to auto-fill variant
+                          </span>
+                        </div>
+                        <VariantManager
+                          productId={editingProduct?.id}
+                          variants={productVariants}
+                          onChange={setProductVariants}
+                        />
+                      </div>
                     </div>
                     <Button type="submit" variant="gradient" disabled={uploading}>
                       {uploading ? "Uploading..." : editingProduct ? 'Update Product' : 'Add Product'}
@@ -553,10 +680,10 @@ const Admin = () => {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center justify-between text-sm mb-3">
-                      <span className="text-muted-foreground">Stock: {product.stock}</span>
+                    <div className="flex items-center justify-between mb-3">
+                      <StockBadge stock={product.stock} lowStockThreshold={product.low_stock_threshold} />
                       {product.brand && (
-                        <span className="text-muted-foreground">{product.brand}</span>
+                        <span className="text-sm text-muted-foreground">{product.brand}</span>
                       )}
                     </div>
                     <div className="flex gap-2">
