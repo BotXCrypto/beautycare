@@ -126,7 +126,7 @@ const Shop = () => {
                 originalPrice={product.original_price}
                 image={product.image_url}
                 rating={product.rating}
-                inStock={product.stock > 0}
+                stock={product.stock}
               />
             ))}
           </div>
