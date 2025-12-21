@@ -273,7 +273,7 @@ const Cart = () => {
                   )}
                   {deliveryDays > 0 && (
                     <div className="text-sm text-muted-foreground">
-                      Estimated delivery: {deliveryDays} days
+                      Estimated delivery: {deliveryDays <= 2 ? '1-2' : deliveryDays <= 4 ? `${deliveryDays}-${deliveryDays + 1}` : `${deliveryDays}-${deliveryDays + 2}`} days
                     </div>
                   )}
                   <div className="border-t pt-2 flex justify-between text-xl font-bold">

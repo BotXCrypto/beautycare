@@ -6,11 +6,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Copy, CreditCard, Banknote, Smartphone, Clock, AlertCircle } from 'lucide-react';
+
+type PaymentType = 'COD' | 'EasyPaisa' | 'BankDeposit' | 'Stripe';
+
+const ACCOUNT_DETAILS = {
+  accountHolder: 'Ubaidullah Ghouri',
+  easyPaisa: '03101362920',
+  bankAccount: '03101362920',
+  iban: 'PK95SADA0000003101362920',
+  bankName: 'SadaPay',
+};
+
+// COD charges
+const COD_CHARGE_DG_KHAN = 150;
+const COD_CHARGE_BASE = 50;
 
 const Checkout = () => {
   const { items, total, clearCart } = useCart();
@@ -19,7 +35,9 @@ const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
-  const [paymentType, setPaymentType] = useState<'COD' | 'Banking'>('COD');
+  const [paymentType, setPaymentType] = useState<PaymentType>('COD');
+  const [transactionId, setTransactionId] = useState('');
+  const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
@@ -40,9 +58,32 @@ const Checkout = () => {
   const province = locationState?.province || '';
   const cityId = locationState?.cityId || '';
   const cityName = locationState?.cityName || '';
-  const shippingCost = locationState?.shippingCost || 0;
-  const deliveryDays = locationState?.deliveryDays || 0;
-  const isFreeShipping = shippingCost === 0 && total >= 100000;
+  const baseShippingCost = locationState?.shippingCost || 0;
+  const baseDeliveryDays = locationState?.deliveryDays || 0;
+  const isFreeShipping = baseShippingCost === 0 && total >= 100000;
+
+  // Check if DG Khan
+  const isDGKhan = cityName.toLowerCase().includes('dera ghazi khan') || 
+                   cityName.toLowerCase().includes('dg khan') ||
+                   cityName.toLowerCase().includes('d.g. khan');
+
+  // Calculate COD extra charge
+  const getCODCharge = () => {
+    if (paymentType !== 'COD') return 0;
+    return isDGKhan ? COD_CHARGE_DG_KHAN : COD_CHARGE_DG_KHAN + (baseShippingCost > 500 ? 100 : 50);
+  };
+
+  const codCharge = getCODCharge();
+  const finalShippingCost = isFreeShipping ? 0 : baseShippingCost;
+  const grandTotal = total + finalShippingCost + codCharge;
+
+  // Get delivery time range
+  const getDeliveryTimeRange = () => {
+    if (isDGKhan) return '1-2 days';
+    if (baseDeliveryDays <= 3) return `${baseDeliveryDays}-${baseDeliveryDays + 1} days`;
+    if (baseDeliveryDays <= 5) return `${baseDeliveryDays}-${baseDeliveryDays + 2} days`;
+    return `${baseDeliveryDays}-${baseDeliveryDays + 3} days`;
+  };
 
   // Redirect to cart if no location selected
   useEffect(() => {
@@ -55,6 +96,42 @@ const Checkout = () => {
       navigate('/cart');
     }
   }, [province, cityId, navigate]);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard`,
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setPaymentScreenshot(e.target.files[0]);
+    }
+  };
+
+  const uploadScreenshot = async (): Promise<string | null> => {
+    if (!paymentScreenshot || !user) return null;
+
+    const fileExt = paymentScreenshot.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('product-images')
+      .upload(`payment-proofs/${fileName}`, paymentScreenshot);
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return null;
+    }
+
+    const { data } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(`payment-proofs/${fileName}`);
+
+    return data.publicUrl;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,22 +155,53 @@ const Checkout = () => {
       return;
     }
 
+    // Validate payment proof for digital payments
+    if ((paymentType === 'EasyPaisa' || paymentType === 'BankDeposit') && !transactionId && !paymentScreenshot) {
+      toast({
+        title: "Payment proof required",
+        description: "Please provide transaction ID or upload payment screenshot",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (paymentType === 'Stripe') {
+      toast({
+        title: "Coming Soon",
+        description: "Stripe payment will be available soon",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Create order with location data
+      // Upload screenshot if provided
+      let screenshotUrl: string | null = null;
+      if (paymentScreenshot) {
+        screenshotUrl = await uploadScreenshot();
+      }
+
+      // Determine payment status
+      const paymentStatus = paymentType === 'COD' ? 'Pending' : 'Awaiting Verification';
+
+      // Create order with location data and payment info
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user.id,
-          total: total + shippingCost,
+          total: grandTotal,
           payment_type: paymentType,
-          payment_status: paymentType === 'Banking' ? 'Pending' : 'Pending',
+          payment_status: paymentStatus,
           status: 'Pending',
           address: {
             ...address,
             province: province,
             city: cityName,
+            transactionId: transactionId || null,
+            paymentScreenshot: screenshotUrl,
+            codCharge: codCharge,
+            shippingCost: finalShippingCost,
           },
         })
         .select()
@@ -120,7 +228,9 @@ const Checkout = () => {
 
       toast({
         title: "Order placed!",
-        description: "Your order has been placed successfully",
+        description: paymentType === 'COD' 
+          ? "Your order has been placed. Pay on delivery." 
+          : "Your order is pending payment verification.",
       });
 
       navigate(`/orders`);
@@ -208,30 +318,192 @@ const Checkout = () => {
                   <p className="text-sm">
                     <span className="font-medium">City:</span> {cityName}
                   </p>
-                  {deliveryDays > 0 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Estimated delivery: {deliveryDays} days
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4" />
+                    <span>Estimated delivery: {getDeliveryTimeRange()}</span>
+                  </div>
                 </div>
               </div>
 
               <div className="border rounded-lg p-6">
                 <h2 className="text-2xl font-bold mb-4">Payment Method</h2>
-                <RadioGroup value={paymentType} onValueChange={(val) => setPaymentType(val as 'COD' | 'Banking')}>
-                  <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent cursor-pointer">
-                    <RadioGroupItem value="COD" id="cod" />
-                    <Label htmlFor="cod" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Cash on Delivery</div>
-                      <div className="text-sm text-muted-foreground">Pay when you receive your order</div>
-                    </Label>
+                <RadioGroup value={paymentType} onValueChange={(val) => setPaymentType(val as PaymentType)}>
+                  {/* Cash on Delivery */}
+                  <div className={`p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors ${paymentType === 'COD' ? 'border-primary bg-primary/5' : ''}`}>
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="COD" id="cod" className="mt-1" />
+                      <Label htmlFor="cod" className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <Banknote className="w-5 h-5 text-green-600" />
+                          <span className="font-semibold">Cash on Delivery</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Pay when you receive your order</p>
+                        <div className="mt-2 text-sm bg-amber-50 text-amber-800 p-2 rounded flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Extra COD charge: {formatPrice(isDGKhan ? COD_CHARGE_DG_KHAN : getCODCharge())}</span>
+                        </div>
+                      </Label>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-accent cursor-pointer">
-                    <RadioGroupItem value="Banking" id="banking" />
-                    <Label htmlFor="banking" className="flex-1 cursor-pointer">
-                      <div className="font-semibold">Online Banking / Stripe</div>
-                      <div className="text-sm text-muted-foreground">Pay securely via bank transfer or card</div>
-                    </Label>
+
+                  {/* EasyPaisa */}
+                  <div className={`p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors mt-3 ${paymentType === 'EasyPaisa' ? 'border-primary bg-primary/5' : ''}`}>
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="EasyPaisa" id="easypaisa" className="mt-1" />
+                      <Label htmlFor="easypaisa" className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="w-5 h-5 text-green-500" />
+                          <span className="font-semibold">EasyPaisa</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Send payment to our EasyPaisa account</p>
+                      </Label>
+                    </div>
+                    
+                    {paymentType === 'EasyPaisa' && (
+                      <div className="mt-4 ml-7 space-y-3">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <p className="font-semibold text-green-800 mb-2">EasyPaisa Account Details</p>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Account Holder:</span>
+                              <span className="font-medium">{ACCOUNT_DETAILS.accountHolder}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Account Number:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{ACCOUNT_DETAILS.easyPaisa}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  onClick={() => copyToClipboard(ACCOUNT_DETAILS.easyPaisa, 'Account number')}
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="easypaisa-tid">Transaction ID</Label>
+                          <Input
+                            id="easypaisa-tid"
+                            placeholder="Enter your EasyPaisa transaction ID"
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="easypaisa-screenshot">Payment Screenshot (optional)</Label>
+                          <Input
+                            id="easypaisa-screenshot"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bank Deposit */}
+                  <div className={`p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors mt-3 ${paymentType === 'BankDeposit' ? 'border-primary bg-primary/5' : ''}`}>
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="BankDeposit" id="bank" className="mt-1" />
+                      <Label htmlFor="bank" className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-5 h-5 text-blue-600" />
+                          <span className="font-semibold">Bank Deposit / Transfer</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Transfer to our SadaPay account</p>
+                      </Label>
+                    </div>
+                    
+                    {paymentType === 'BankDeposit' && (
+                      <div className="mt-4 ml-7 space-y-3">
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <p className="font-semibold text-blue-800 mb-2">Bank Account Details</p>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Bank:</span>
+                              <span className="font-medium">{ACCOUNT_DETAILS.bankName}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Account Holder:</span>
+                              <span className="font-medium">{ACCOUNT_DETAILS.accountHolder}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">Account Number:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{ACCOUNT_DETAILS.bankAccount}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  onClick={() => copyToClipboard(ACCOUNT_DETAILS.bankAccount, 'Account number')}
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground">IBAN:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-xs">{ACCOUNT_DETAILS.iban}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2"
+                                  onClick={() => copyToClipboard(ACCOUNT_DETAILS.iban, 'IBAN')}
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="bank-tid">Transaction ID / Reference</Label>
+                          <Input
+                            id="bank-tid"
+                            placeholder="Enter your bank transaction ID"
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value)}
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor="bank-screenshot">Payment Screenshot (optional)</Label>
+                          <Input
+                            id="bank-screenshot"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stripe - Coming Soon */}
+                  <div className={`p-4 border rounded-lg cursor-pointer transition-colors mt-3 opacity-60 ${paymentType === 'Stripe' ? 'border-primary bg-primary/5' : ''}`}>
+                    <div className="flex items-start space-x-3">
+                      <RadioGroupItem value="Stripe" id="stripe" className="mt-1" />
+                      <Label htmlFor="stripe" className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="w-5 h-5 text-purple-600" />
+                          <span className="font-semibold">Card Payment (Stripe)</span>
+                          <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Coming Soon</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">Pay securely with credit/debit card</p>
+                      </Label>
+                    </div>
                   </div>
                 </RadioGroup>
               </div>
@@ -244,7 +516,7 @@ const Checkout = () => {
                 <Button 
                   type="submit" 
                   variant="gradient" 
-                  disabled={loading} 
+                  disabled={loading || paymentType === 'Stripe'} 
                   className="flex-1"
                 >
                   {loading ? 'Processing...' : 'Place Order'}
@@ -274,21 +546,34 @@ const Checkout = () => {
                 <div className="flex justify-between">
                   <span>Shipping:</span>
                   <span>
-                    {shippingCost === 0 ? (
+                    {isFreeShipping ? (
                       <span className="text-green-600 font-semibold">FREE</span>
                     ) : (
-                      formatPrice(shippingCost)
+                      formatPrice(finalShippingCost)
                     )}
                   </span>
                 </div>
                 {isFreeShipping && (
                   <div className="text-xs text-green-600 font-semibold">
-                    🎉 Free Shipping Applied - Orders ≥ {formatPrice(100000)} ship free!
+                    Free Shipping Applied - Orders ≥ {formatPrice(100000)} ship free!
+                  </div>
+                )}
+                {paymentType === 'COD' && codCharge > 0 && (
+                  <div className="flex justify-between text-amber-700">
+                    <span>COD Charge:</span>
+                    <span>{formatPrice(codCharge)}</span>
                   </div>
                 )}
                 <div className="border-t pt-2 flex justify-between text-xl font-bold">
                   <span>Total:</span>
-                  <span className="text-primary">{formatPrice(total + shippingCost)}</span>
+                  <span className="text-primary">{formatPrice(grandTotal)}</span>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4" />
+                  <span>Delivery: {getDeliveryTimeRange()}</span>
                 </div>
               </div>
             </div>
