@@ -13,12 +13,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { Package, ShoppingCart, Users, DollarSign, Pencil, Trash2, Plus } from 'lucide-react';
+import { Package, ShoppingCart, Users, DollarSign, Pencil, Trash2, Plus, CreditCard } from 'lucide-react';
 import { CategoryManager } from '@/components/admin/CategoryManager';
 import { ProductImageManager } from '@/components/admin/ProductImageManager';
 import { VariantManager } from '@/components/admin/VariantManager';
 import { QRScanner } from '@/components/admin/QRScanner';
 import { StockBadge } from '@/components/product/StockBadge';
+import { OrderManager } from '@/components/admin/OrderManager';
 
 interface Product {
   id: string;
@@ -515,7 +516,9 @@ const Admin = () => {
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="manage">Manage</TabsTrigger>
+            <TabsTrigger value="payments" className="relative">
+              Payments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="products">
@@ -725,16 +728,20 @@ const Admin = () => {
           </TabsContent>
 
           <TabsContent value="orders">
-            <Card className="p-6">
-              <h2 className="text-2xl font-bold mb-4">Recent Orders</h2>
-              <p className="text-muted-foreground">Order management coming soon...</p>
-            </Card>
+            <OrderManager />
           </TabsContent>
 
-          <TabsContent value="manage">
+          <TabsContent value="payments">
             <Card className="p-6">
-              <h2 className="text-2xl font-bold mb-4">Site Management</h2>
-              <p className="text-muted-foreground">Additional management features coming soon...</p>
+              <div className="flex items-center gap-3 mb-6">
+                <CreditCard className="w-6 h-6 text-primary" />
+                <h2 className="text-2xl font-bold">Payment Verification</h2>
+              </div>
+              <p className="text-muted-foreground mb-4">
+                Verify pending payments from EasyPaisa and Bank transfers. 
+                Click on "Pending Payments" filter in Orders tab to see orders awaiting payment verification.
+              </p>
+              <OrderManager />
             </Card>
           </TabsContent>
         </Tabs>
