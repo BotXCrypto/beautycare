@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import Features from "@/components/Features";
 import BundlesSection from "@/components/BundlesSection";
 import Footer from "@/components/Footer";
+import FirstTimeBuyerBanner from "@/components/FirstTimeBuyerBanner";
 
 interface Category {
   id: string;
@@ -49,9 +50,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <FirstTimeBuyerBanner />
       <Navbar />
       <Hero />
-      <Features />
 
       {/* Categories Section */}
       <section className="container mx-auto px-4 py-16">
@@ -111,6 +112,7 @@ const Index = () => {
         </div>
       </section>
 
+      <Features />
       <Footer />
     </div>
   );
