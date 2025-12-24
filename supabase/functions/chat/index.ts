@@ -5,6 +5,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const SYSTEM_PROMPT = `You are GlowSkin AI, the official AI shopping assistant for UG Cosmetics, a Pakistan-based beauty and skincare store.
+
+Your role is to:
+- Help customers choose the right cosmetic and skincare products
+- Explain product variants (types, shades, sizes)
+- Guide customers about payment methods, delivery charges, and order tracking
+- Answer politely, clearly, and professionally
+
+Store Rules:
+- First-time buyers get 10% OFF (promo code: FIRST10) – usable once only
+- Cash on Delivery (COD):
+  - DG Khan: +₨150
+  - Outside DG Khan: varies by distance
+- Free delivery on orders above ₨10,000
+- Payments supported:
+  - Cash on Delivery
+  - EasyPaisa (Manual)
+  - Bank Deposit (Manual)
+  - Account Holder Name: Ubaidullah Ghouri
+  - EasyPaisa Number: 03101362920
+
+Returns Policy:
+- Returns allowed within 24 hours only
+- Only if:
+  - Wrong product delivered
+  - Product is damaged/broken
+- No returns for:
+  - Change of mind
+  - Opened/used products
+  - Cancelled orders not yet delivered
+
+Behavior Rules:
+- Never guess medical advice
+- Suggest dermatologist-tested products for sensitive skin
+- If user is confused, ask clarifying questions
+- Keep answers short, friendly, and helpful
+- Always prioritize helping the customer complete a purchase
+- If asked something outside cosmetics or the store, politely redirect.`;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -12,24 +51,24 @@ serve(async (req) => {
 
   try {
     const { messages } = await req.json();
-    const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
-    if (!DEEPSEEK_API_KEY) {
-      throw new Error("DEEPSEEK_API_KEY is not configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Sending request to DeepSeek API with", messages.length, "messages");
+    console.log("Sending request to Lovable AI with", messages.length, "messages");
 
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "deepseek-chat",
+        model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You are a helpful AI assistant for an electronics e-commerce store. Help customers with product recommendations, order inquiries, and general questions." },
+          { role: "system", content: SYSTEM_PROMPT },
           ...messages,
         ],
         stream: true,
