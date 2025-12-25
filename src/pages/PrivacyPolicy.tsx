@@ -12,7 +12,7 @@ const PrivacyPolicy = () => {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
             <p className="text-muted-foreground mb-8">
-              How UG Cosmetics protects your personal information<br />
+              How Pure & Peak protects your personal information<br />
               Last updated: {new Date().toLocaleDateString()}
             </p>
             
@@ -24,7 +24,7 @@ const PrivacyPolicy = () => {
                     <h2 className="text-2xl font-semibold">Our Commitment</h2>
                   </div>
                   <p className="text-muted-foreground">
-                    At UG Cosmetics, we respect your privacy and are committed to protecting your personal data. 
+                    At Pure & Peak, we respect your privacy and are committed to protecting your personal data. 
                     This privacy policy explains how we collect, use, and safeguard your information when you shop with us. 
                     We operate from Dera Ghazi Khan, Pakistan and serve customers nationwide.
                   </p>
@@ -192,7 +192,7 @@ const PrivacyPolicy = () => {
                     <p className="mb-4">For any privacy-related questions or concerns:</p>
                     <div className="space-y-2">
                       <p><strong className="text-foreground">WhatsApp:</strong> 0310-1362920</p>
-                      <p><strong className="text-foreground">Business:</strong> UG Cosmetics</p>
+                      <p><strong className="text-foreground">Business:</strong> Pure & Peak</p>
                       <p><strong className="text-foreground">Location:</strong> Dera Ghazi Khan, Punjab, Pakistan</p>
                     </div>
                   </div>

@@ -76,28 +76,28 @@ const ProductCard = ({
   };
 
   return (
-    <Card className="group overflow-hidden border-border hover:border-primary transition-all duration-300 hover:shadow-large">
+    <Card className="group overflow-hidden border-border hover:border-primary/50 transition-all duration-300 hover:shadow-xl hover:scale-105 animate-scale-in">
       <div 
-        className="relative aspect-square overflow-hidden bg-muted cursor-pointer"
+        className="relative aspect-square overflow-hidden bg-gradient-to-br from-muted to-muted/50 cursor-pointer"
         onClick={() => id && navigate(`/product/${id}`)}
       >
         <img
           src={image}
           alt={name}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-700 ease-out"
         />
         {discount > 0 && (
-          <Badge className="absolute top-3 left-3 bg-destructive text-destructive-foreground">
+          <Badge className="absolute top-3 left-3 bg-gradient-to-r from-primary to-accent text-white animate-bounce-subtle">
             {discount}% OFF
           </Badge>
         )}
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-3 right-3 bg-background/80 backdrop-blur hover:bg-background"
+          className="absolute top-3 right-3 bg-background/80 backdrop-blur hover:bg-background hover:scale-110 transition-all duration-300 group/wish"
           onClick={handleWishlistClick}
         >
-          <Heart className={`w-4 h-4 ${id && isInWishlist(id) ? 'fill-primary text-primary' : ''}`} />
+          <Heart className={`w-4 h-4 transition-all duration-300 ${id && isInWishlist(id) ? 'fill-primary text-primary animate-scale-in' : 'group-hover/wish:text-primary'}`} />
         </Button>
         {!inStock && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur flex items-center justify-center">
@@ -115,7 +115,7 @@ const ProductCard = ({
         <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center">
             {[...Array(5)].map((_, i) => (
-              <span key={i} className={i < Math.floor(rating) ? "text-primary" : "text-muted"}>
+              <span key={i} className={`transition-transform duration-300 ${i < Math.floor(rating) ? "text-primary scale-110" : "text-muted"}`}>
                 ★
               </span>
             ))}
@@ -124,15 +124,21 @@ const ProductCard = ({
         </div>
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-xl font-bold text-primary">{formatPrice(price)}</div>
+            <div className="text-xl font-bold beauty-gradient">{formatPrice(price)}</div>
             {originalPrice && (
               <div className="text-sm text-muted-foreground line-through">
                 {formatPrice(originalPrice)}
               </div>
             )}
           </div>
-          <Button variant="gradient" size="icon" disabled={!inStock} onClick={handleCartClick}>
-            <ShoppingCart className="w-4 h-4" />
+          <Button 
+            variant="gradient" 
+            size="icon" 
+            disabled={!inStock} 
+            onClick={handleCartClick}
+            className="hover:scale-110 transition-transform duration-300 group/cart"
+          >
+            <ShoppingCart className="w-4 h-4 group-hover/cart:animate-bounce-subtle" />
           </Button>
         </div>
       </div>

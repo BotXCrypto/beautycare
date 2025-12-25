@@ -277,7 +277,7 @@ const Auth = () => {
         <div className="flex items-center justify-center mb-8">
           <Sparkles className="w-10 h-10 text-primary mr-2" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            GlowSkin
+            Pure & Peak
           </h1>
         </div>
 
