@@ -116,7 +116,7 @@ const Returns = () => {
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold mb-2">Returns & Refunds</h1>
-        <p className="text-muted-foreground mb-8">Return policy for UG Cosmetics & Beauty Products</p>
+        <p className="text-muted-foreground mb-8">Return policy for Pure & Peak & Beauty Products</p>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Return Policy */}
@@ -127,7 +127,7 @@ const Returns = () => {
                 <h2 className="text-2xl font-semibold">Our Return Policy</h2>
               </div>
               <p className="text-muted-foreground mb-6">
-                At UG Cosmetics, we want you to be completely satisfied with your purchase. 
+                At Pure & Peak, we want you to be completely satisfied with your purchase. 
                 We accept returns under specific conditions to ensure product quality and safety for all our customers.
               </p>
 

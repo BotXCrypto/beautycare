@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are GlowSkin AI, the official AI shopping assistant for UG Cosmetics, a Pakistan-based beauty and skincare store.
+const SYSTEM_PROMPT = `You are Pure & Peak AI, the official AI shopping assistant for Pure & Peak, a Pakistan-based beauty and skincare store.
 
 Your role is to:
 - Help customers choose the right cosmetic and skincare products

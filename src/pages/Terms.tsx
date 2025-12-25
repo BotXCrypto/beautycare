@@ -12,7 +12,7 @@ const Terms = () => {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-4xl font-bold mb-2">Terms of Service</h1>
             <p className="text-muted-foreground mb-8">
-              Terms and conditions for UG Cosmetics & Beauty Products<br />
+              Terms and conditions for Pure & Peak & Beauty Products<br />
               Last updated: {new Date().toLocaleDateString()}
             </p>
             
@@ -24,7 +24,7 @@ const Terms = () => {
                     <h2 className="text-2xl font-semibold">Agreement to Terms</h2>
                   </div>
                   <p className="text-muted-foreground">
-                    By accessing and using UG Cosmetics website and placing orders, you agree to be bound by these Terms of Service. 
+                    By accessing and using Pure & Peak website and placing orders, you agree to be bound by these Terms of Service. 
                     These terms apply to all customers, visitors, and others who access our services. 
                     If you disagree with any part of these terms, please do not use our website or services.
                   </p>

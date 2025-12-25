@@ -10,10 +10,10 @@ const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <div className="w-10 h-10 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xl">G</span>
+                <span className="text-primary-foreground font-bold text-xl">P</span>
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                GlowSkin
+                Pure & Peak
               </span>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
@@ -128,7 +128,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 GlowSkin. All rights reserved.</p>
+          <p>&copy; 2025 Pure & Peak. All rights reserved.</p>
         </div>
       </div>
     </footer>
