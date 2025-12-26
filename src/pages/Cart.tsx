@@ -79,41 +79,65 @@ const Cart = () => {
   }, [selectedCityId, total]);
 
   const fetchCities = async () => {
-    const { data, error } = await supabase
-      .from('cities')
-      .select('*')
-      .order('name');
-    
-    if (error) {
-      console.error('Error fetching cities:', error);
-      return;
+    try {
+      const { data, error } = await supabase
+        .from('cities')
+        .select('*')
+        .order('name');
+      
+      if (error) {
+        console.error('Error fetching cities:', error);
+        toast({
+          title: "Error loading cities",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log('Cities loaded:', data?.length || 0);
+      setCities(data || []);
+    } catch (err: any) {
+      console.error('Unexpected error fetching cities:', err);
     }
-    
-    setCities(data || []);
   };
 
   const calculateShipping = async () => {
     if (!selectedCityId) return;
 
     try {
+      console.log('Calculating shipping for city:', selectedCityId, 'total:', total);
+      
       const { data, error } = await supabase.rpc('calculate_shipping', {
         p_city_id: selectedCityId,
         p_order_total: total
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC error:', error);
+        throw error;
+      }
+
+      console.log('Shipping calculation result:', data);
 
       if (data && data.length > 0) {
         const result = data[0];
         setShippingCost(result.shipping_cost || 0);
         setDeliveryDays(result.delivery_days || 0);
         setIsFreeShipping(result.shipping_cost === 0 && total >= 100000);
+      } else {
+        console.warn('No shipping data returned');
+        setShippingCost(500); // Default fallback
+        setDeliveryDays(3);
       }
     } catch (error: any) {
       console.error('Error calculating shipping:', error);
+      // Set default values on error
+      setShippingCost(500);
+      setDeliveryDays(3);
       toast({
         title: "Error",
-        description: "Failed to calculate shipping cost",
+        description: "Using default shipping. " + error.message,
         variant: "destructive",
       });
     }
@@ -210,10 +234,12 @@ const Cart = () => {
   };
 
   const handleProceedToCheckout = () => {
+    console.log('Proceed to checkout - Province:', selectedProvince, 'CityID:', selectedCityId);
+    
     if (!selectedProvince || !selectedCityId) {
       toast({
         title: "Location Required",
-        description: "Please select your location before checking out.",
+        description: "Please select your province and city before checking out.",
         variant: "destructive",
       });
       return;
@@ -229,6 +255,12 @@ const Cart = () => {
         return;
       }
     }
+
+    console.log('Navigating to checkout with state:', {
+      province: selectedProvince,
+      cityId: selectedCityId,
+      cityName: selectedCityName,
+    });
 
     navigate('/checkout', {
       state: {
