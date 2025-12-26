@@ -56,6 +56,15 @@ const Checkout = () => {
     cityName?: string;
     shippingCost?: number;
     deliveryDays?: number;
+    discountCode?: string;
+    discountAmount?: number;
+    deliveryDetails?: {
+      fullName: string;
+      phoneNumber: string;
+      streetAddress: string;
+      area: string;
+      postalCode: string;
+    };
   } | null;
 
   const province = locationState?.province || '';
@@ -63,7 +72,24 @@ const Checkout = () => {
   const cityName = locationState?.cityName || '';
   const baseShippingCost = locationState?.shippingCost || 0;
   const baseDeliveryDays = locationState?.deliveryDays || 0;
+  const discountCode = locationState?.discountCode || '';
+  const discountAmount = locationState?.discountAmount || 0;
+  const deliveryDetailsFromCart = locationState?.deliveryDetails;
   const isFreeShipping = baseShippingCost === 0 && total >= 100000;
+
+  // Pre-fill address from cart delivery details if provided
+  useEffect(() => {
+    if (deliveryDetailsFromCart) {
+      setAddress(prev => ({
+        ...prev,
+        fullName: deliveryDetailsFromCart.fullName || prev.fullName,
+        phone: deliveryDetailsFromCart.phoneNumber || prev.phone,
+        addressLine1: deliveryDetailsFromCart.streetAddress || prev.addressLine1,
+        area: deliveryDetailsFromCart.area || prev.area,
+        postalCode: deliveryDetailsFromCart.postalCode || prev.postalCode,
+      }));
+    }
+  }, [deliveryDetailsFromCart]);
 
   // Check if DG Khan
   const isDGKhan = cityName.toLowerCase().includes('dera ghazi khan') || 
@@ -78,7 +104,7 @@ const Checkout = () => {
 
   const codCharge = getCODCharge();
   const finalShippingCost = isFreeShipping ? 0 : baseShippingCost;
-  const grandTotal = total + finalShippingCost + codCharge;
+  const grandTotal = total - discountAmount + finalShippingCost + codCharge;
 
   // Get delivery time range
   const getDeliveryTimeRange = () => {
@@ -254,6 +280,8 @@ const Checkout = () => {
             paymentScreenshot: screenshotUrl,
             codCharge: codCharge,
             shippingCost: finalShippingCost,
+            discountCode: discountCode || null,
+            discountAmount: discountAmount || 0,
           },
         })
         .select()
@@ -274,6 +302,24 @@ const Checkout = () => {
         .insert(orderItems);
 
       if (itemsError) throw itemsError;
+
+      // Track discount code usage if applied
+      if (discountCode && discountAmount > 0) {
+        // Increment used_count by 1
+        const { data: codeData, error: fetchError } = await supabase
+          .from('discount_codes')
+          .select('used_count')
+          .eq('code', discountCode)
+          .single();
+        
+        if (!fetchError && codeData) {
+          await supabase
+            .from('discount_codes')
+            .update({ used_count: (codeData.used_count || 0) + 1 })
+            .eq('code', discountCode)
+            .catch(err => console.error('Error tracking discount code usage:', err));
+        }
+      }
 
       // Clear cart
       await clearCart();
@@ -627,6 +673,12 @@ const Checkout = () => {
                 {isFreeShipping && (
                   <div className="text-xs text-green-600 font-semibold">
                     Free Shipping Applied - Orders ≥ {formatPrice(100000)} ship free!
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span>Discount {discountCode ? `(${discountCode})` : ''}:</span>
+                    <span>-{formatPrice(discountAmount)}</span>
                   </div>
                 )}
                 {paymentType === 'COD' && codCharge > 0 && (

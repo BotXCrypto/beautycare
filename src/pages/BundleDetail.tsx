@@ -34,7 +34,7 @@ interface Bundle {
 const BundleDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToCart } = useCart();
+  const { addBundleToCart } = useCart();
   const { formatPrice } = useCurrency();
   const [bundle, setBundle] = useState<Bundle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,19 +99,12 @@ const BundleDetail = () => {
 
     setAdding(true);
     try {
-      // When adding a bundle, calculate prorated unit price for each product
-      const originalPrice = bundle.products.reduce(
-        (sum, p) => sum + p.price * p.quantity,
-        0
+      await addBundleToCart(
+        bundle.id,
+        bundle.name,
+        bundle.discount_percentage,
+        bundle.products.map(p => ({ id: p.id, quantity: p.quantity, price: p.price }))
       );
-      const discountedPrice = originalPrice * (1 - bundle.discount_percentage / 100);
-
-      for (const product of bundle.products) {
-        // prorated factor across the bundle
-        const prorateFactor = originalPrice > 0 ? (discountedPrice / originalPrice) : 1;
-        const proratedUnitPrice = Math.round((product.price * prorateFactor + Number.EPSILON) * 100) / 100;
-        await addToCart(product.id, product.quantity, proratedUnitPrice);
-      }
       toast({
         title: "Bundle Added!",
         description: `${bundle.name} has been added to your cart with ${bundle.discount_percentage}% discount applied.`,

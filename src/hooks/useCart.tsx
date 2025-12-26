@@ -8,6 +8,9 @@ export interface CartItem {
   product_id: string;
   quantity: number;
   unit_price_override?: number | null;
+  bundle_id?: string | null;
+  bundle_name?: string | null;
+  bundle_discount_percentage?: number | null;
   product: {
     id: string;
     title: string;
@@ -136,6 +139,81 @@ export function useCart() {
     }
   };
 
+  const addBundleToCart = async (
+    bundleId: string,
+    bundleName: string,
+    bundleDiscountPercentage: number,
+    products: Array<{ id: string; quantity: number; price: number }>
+  ) => {
+    if (!user) {
+      toast({
+        title: "Please login",
+        description: "You need to be logged in to add items to cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Calculate original and discounted bundle price
+      const originalPrice = products.reduce((sum, p) => sum + p.price * p.quantity, 0);
+      const discountedPrice = originalPrice * (1 - bundleDiscountPercentage / 100);
+      const prorateFactor = originalPrice > 0 ? discountedPrice / originalPrice : 1;
+
+      // Add each product with bundle_id and prorated unit price
+      for (const product of products) {
+        const proratedUnitPrice = Math.round((product.price * prorateFactor + Number.EPSILON) * 100) / 100;
+        
+        const payload: any = {
+          user_id: user.id,
+          product_id: product.id,
+          quantity: product.quantity,
+          bundle_id: bundleId,
+          bundle_name: bundleName,
+          bundle_discount_percentage: bundleDiscountPercentage,
+          unit_price_override: proratedUnitPrice,
+        };
+
+        try {
+          const { error } = await supabase
+            .from('cart_items')
+            .upsert(payload, { onConflict: 'user_id,product_id' });
+
+          if (error) throw error;
+        } catch (err) {
+          // Fallback without bundle fields
+          try {
+            const { error } = await supabase
+              .from('cart_items')
+              .upsert({
+                user_id: user.id,
+                product_id: product.id,
+                quantity: product.quantity,
+                unit_price_override: proratedUnitPrice,
+              }, { onConflict: 'user_id,product_id' });
+
+            if (error) throw error;
+          } catch (err2: any) {
+            throw err2;
+          }
+        }
+      }
+
+      toast({
+        title: "Bundle added!",
+        description: `${bundleName} with ${bundleDiscountPercentage}% discount added to your cart.`,
+      });
+
+      fetchCart();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const updateQuantity = async (itemId: string, quantity: number) => {
     try {
       const { error } = await supabase
@@ -208,6 +286,7 @@ export function useCart() {
     loading,
     total,
     addToCart,
+    addBundleToCart,
     updateQuantity,
     removeFromCart,
     clearCart,

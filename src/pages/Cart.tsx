@@ -2,9 +2,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useCart } from '@/hooks/useCart';
 import { useCurrency } from '@/hooks/useCurrency';
-import { Minus, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Minus, Plus, Trash2, ShoppingBag, Gift, MapPin, User, Phone } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,17 +20,51 @@ interface City {
   shipping_zone: number;
 }
 
+interface DiscountCode {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  max_discount_amount?: number;
+  min_order_value?: number;
+}
+
+interface DeliveryDetails {
+  fullName: string;
+  phoneNumber: string;
+  streetAddress: string;
+  area: string;
+  postalCode: string;
+}
+
 const Cart = () => {
   const { items, loading, total, updateQuantity, removeFromCart, clearCart } = useCart();
   const { formatPrice } = useCurrency();
+  const { user } = useAuth();
   const navigate = useNavigate();
   
   const [selectedProvince, setSelectedProvince] = useState<string>('');
   const [selectedCityId, setSelectedCityId] = useState<string>('');
+  const [selectedCityName, setSelectedCityName] = useState<string>('');
   const [cities, setCities] = useState<City[]>([]);
   const [shippingCost, setShippingCost] = useState<number>(0);
   const [deliveryDays, setDeliveryDays] = useState<number>(0);
   const [isFreeShipping, setIsFreeShipping] = useState(false);
+  
+  const [discountCode, setDiscountCode] = useState('');
+  const [appliedDiscount, setAppliedDiscount] = useState<DiscountCode | null>(null);
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [loadingDiscount, setLoadingDiscount] = useState(false);
+
+  const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>({
+    fullName: '',
+    phoneNumber: '',
+    streetAddress: '',
+    area: '',
+    postalCode: '',
+  });
+
+  const [showDeliveryForm, setShowDeliveryForm] = useState(false);
 
   const provinces = ['Punjab', 'Sindh', 'KPK', 'Balochistan', 'Gilgit-Baltistan'];
 
@@ -82,12 +119,94 @@ const Cart = () => {
     }
   };
 
+  const applyDiscountCode = async () => {
+    if (!discountCode.trim()) {
+      toast({
+        title: "Enter code",
+        description: "Please enter a discount code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoadingDiscount(true);
+    try {
+      const { data, error } = await supabase
+        .from('discount_codes')
+        .select('*')
+        .eq('code', discountCode.toUpperCase())
+        .eq('active', true)
+        .single();
+
+      if (error || !data) {
+        throw new Error('Invalid or expired discount code');
+      }
+
+      const code = data as DiscountCode;
+
+      // Check if expired
+      if (code.expires_at && new Date(code.expires_at) < new Date()) {
+        throw new Error('This discount code has expired');
+      }
+
+      // Check minimum order value
+      if (code.min_order_value && total < code.min_order_value) {
+        throw new Error(`Minimum order value of ${formatPrice(code.min_order_value)} required`);
+      }
+
+      // Calculate discount amount
+      let amount = 0;
+      if (code.discount_type === 'percentage') {
+        amount = (total * code.discount_value) / 100;
+        if (code.max_discount_amount && amount > code.max_discount_amount) {
+          amount = code.max_discount_amount;
+        }
+      } else {
+        amount = code.discount_value;
+      }
+
+      setAppliedDiscount(code);
+      setDiscountAmount(amount);
+      toast({
+        title: "Discount applied!",
+        description: `You saved ${formatPrice(amount)}!`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Invalid code",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingDiscount(false);
+    }
+  };
+
+  const removeDiscountCode = () => {
+    setAppliedDiscount(null);
+    setDiscountAmount(0);
+    setDiscountCode('');
+  };
+
   const handleProvinceChange = (province: string) => {
     setSelectedProvince(province);
     setSelectedCityId('');
+    setSelectedCityName('');
     setShippingCost(0);
     setDeliveryDays(0);
     setIsFreeShipping(false);
+  };
+
+  const handleCityChange = (cityId: string) => {
+    setSelectedCityId(cityId);
+    const city = cities.find(c => c.id === cityId);
+    if (city) {
+      setSelectedCityName(city.name);
+    }
+  };
+
+  const handleDeliveryDetailsChange = (field: keyof DeliveryDetails, value: string) => {
+    setDeliveryDetails(prev => ({ ...prev, [field]: value }));
   };
 
   const handleProceedToCheckout = () => {
@@ -100,14 +219,27 @@ const Cart = () => {
       return;
     }
 
-    const selectedCity = cities.find(c => c.id === selectedCityId);
+    if (showDeliveryForm) {
+      if (!deliveryDetails.fullName.trim() || !deliveryDetails.phoneNumber.trim() || !deliveryDetails.streetAddress.trim()) {
+        toast({
+          title: "Incomplete Details",
+          description: "Please fill in all required delivery fields.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     navigate('/checkout', {
       state: {
         province: selectedProvince,
         cityId: selectedCityId,
-        cityName: selectedCity?.name,
+        cityName: selectedCityName,
         shippingCost,
         deliveryDays,
+        discountCode: appliedDiscount?.code,
+        discountAmount: discountAmount,
+        deliveryDetails: showDeliveryForm ? deliveryDetails : null,
       }
     });
   };
@@ -157,51 +289,126 @@ const Cart = () => {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
-            {items.map((item) => (
-              <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
-                <img
-                  src={item.product.image_url}
-                  alt={item.product.title}
-                  className="w-24 h-24 object-cover rounded"
-                />
-                <div className="flex-1">
-                  <h3 className="font-semibold mb-1">{item.product.title}</h3>
-                  <p className="text-lg font-bold text-primary">{formatPrice(item.product.price)}</p>
-                  
-                  <div className="flex items-center gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
-                    <span className="w-12 text-center">{item.quantity}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                      disabled={item.quantity >= item.product.stock}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col items-end justify-between">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeFromCart(item.id)}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                  <p className="font-bold">{formatPrice(item.product.price * item.quantity)}</p>
-                </div>
-              </div>
-            ))}
+            {(() => {
+              // Group items by bundle_id (bundles) and non-bundle items
+              const bundleGroups: { [key: string]: typeof items } = {};
+              const individualItems: typeof items = [];
+
+              items.forEach(item => {
+                if (item.bundle_id) {
+                  if (!bundleGroups[item.bundle_id]) {
+                    bundleGroups[item.bundle_id] = [];
+                  }
+                  bundleGroups[item.bundle_id].push(item);
+                } else {
+                  individualItems.push(item);
+                }
+              });
+
+              return (
+                <>
+                  {/* Display bundles as grouped sections */}
+                  {Object.entries(bundleGroups).map(([bundleId, bundleItems]) => {
+                    const bundlePrice = bundleItems.reduce((sum, item) => {
+                      const price = item.unit_price_override ?? item.product.price;
+                      return sum + (price * item.quantity);
+                    }, 0);
+
+                    return (
+                      <div key={bundleId} className="border-2 border-primary/20 rounded-lg overflow-hidden bg-primary/5">
+                        <div className="bg-gradient-to-r from-primary/10 to-accent/10 p-4 border-b">
+                          <h3 className="text-lg font-bold text-primary">{bundleItems[0].bundle_name}</h3>
+                          <p className="text-sm text-muted-foreground">Bundle with {bundleItems[0].bundle_discount_percentage}% discount</p>
+                        </div>
+                        <div className="p-4 space-y-2">
+                          {bundleItems.map((item) => (
+                            <div key={item.id} className="flex gap-3 pb-2 border-b last:border-b-0">
+                              <img
+                                src={item.product.image_url}
+                                alt={item.product.title}
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                              <div className="flex-1 text-sm">
+                                <p className="font-medium">{item.product.title}</p>
+                                <p className="text-muted-foreground">Qty: {item.quantity}</p>
+                                <p className="text-primary font-semibold">
+                                  {formatPrice(item.unit_price_override ?? item.product.price)} each
+                                </p>
+                                {item.unit_price_override && item.unit_price_override < item.product.price && (
+                                  <p className="text-xs text-green-600">
+                                    Saved {formatPrice(item.product.price - item.unit_price_override)} per item
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end justify-between">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeFromCart(item.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                                <p className="font-bold">{formatPrice((item.unit_price_override ?? item.product.price) * item.quantity)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="bg-primary/5 p-3 border-t font-bold text-primary text-right">
+                          Bundle Total: {formatPrice(bundlePrice)}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Display individual (non-bundle) items */}
+                  {individualItems.map((item) => (
+                    <div key={item.id} className="flex gap-4 p-4 border rounded-lg">
+                      <img
+                        src={item.product.image_url}
+                        alt={item.product.title}
+                        className="w-24 h-24 object-cover rounded"
+                      />
+                      <div className="flex-1">
+                        <h3 className="font-semibold mb-1">{item.product.title}</h3>
+                        <p className="text-lg font-bold text-primary">{formatPrice(item.product.price)}</p>
+                        
+                        <div className="flex items-center gap-2 mt-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                          >
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                          <span className="w-12 text-center">{item.quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            disabled={item.quantity >= item.product.stock}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col items-end justify-between">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                        <p className="font-bold">{formatPrice(item.product.price * item.quantity)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              );
+            })()}
           </div>
 
           <div className="lg:col-span-1">
@@ -229,7 +436,7 @@ const Cart = () => {
                   <label className="text-sm font-medium mb-2 block">City</label>
                   <Select 
                     value={selectedCityId} 
-                    onValueChange={setSelectedCityId}
+                    onValueChange={handleCityChange}
                     disabled={!selectedProvince}
                   >
                     <SelectTrigger>
@@ -246,7 +453,106 @@ const Cart = () => {
                 </div>
               </div>
 
-              <div className="border-t pt-4">
+              <div className="border-t pt-4 mt-4">
+                <button
+                  onClick={() => setShowDeliveryForm(!showDeliveryForm)}
+                  className="flex items-center gap-2 text-sm font-bold text-primary hover:underline mb-3"
+                >
+                  <MapPin className="w-4 h-4" />
+                  {showDeliveryForm ? "Hide" : "Add"} Delivery Details
+                </button>
+
+                {showDeliveryForm && (
+                  <div className="bg-accent/5 rounded p-3 space-y-3 mb-4">
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Full Name *</label>
+                      <Input
+                        placeholder="Your name"
+                        value={deliveryDetails.fullName}
+                        onChange={(e) => handleDeliveryDetailsChange('fullName', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Phone Number *</label>
+                      <Input
+                        placeholder="+923001234567"
+                        value={deliveryDetails.phoneNumber}
+                        onChange={(e) => handleDeliveryDetailsChange('phoneNumber', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Street Address *</label>
+                      <Input
+                        placeholder="House no., street name"
+                        value={deliveryDetails.streetAddress}
+                        onChange={(e) => handleDeliveryDetailsChange('streetAddress', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Area / Landmark</label>
+                      <Input
+                        placeholder="e.g., Near City Mall"
+                        value={deliveryDetails.area}
+                        onChange={(e) => handleDeliveryDetailsChange('area', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold mb-1 block">Postal Code</label>
+                      <Input
+                        placeholder="e.g., 32200"
+                        value={deliveryDetails.postalCode}
+                        onChange={(e) => handleDeliveryDetailsChange('postalCode', e.target.value)}
+                        className="text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h2 className="text-lg font-bold mb-3">Discount Code</h2>
+                {!appliedDiscount ? (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter code"
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+                      className="text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={applyDiscountCode}
+                      disabled={loadingDiscount || !discountCode}
+                    >
+                      {loadingDiscount ? "..." : "Apply"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border border-green-200 rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Gift className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-bold text-green-800">{appliedDiscount.code}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={removeDiscountCode}
+                        className="text-xs"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <p className="text-xs text-green-700">Saved: {formatPrice(discountAmount)}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4 mt-4">
                 <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
                 
                 <div className="space-y-2 mb-4">
@@ -271,6 +577,12 @@ const Cart = () => {
                       Free Shipping Applied
                     </div>
                   )}
+                  {appliedDiscount && discountAmount > 0 && (
+                    <div className="flex justify-between text-green-600 font-semibold">
+                      <span>Discount ({appliedDiscount.code}):</span>
+                      <span>-{formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
                   {deliveryDays > 0 && (
                     <div className="text-sm text-muted-foreground">
                       Estimated delivery: {deliveryDays <= 2 ? '1-2' : deliveryDays <= 4 ? `${deliveryDays}-${deliveryDays + 1}` : `${deliveryDays}-${deliveryDays + 2}`} days
@@ -279,7 +591,7 @@ const Cart = () => {
                   <div className="border-t pt-2 flex justify-between text-xl font-bold">
                     <span>Total:</span>
                     <span className="text-primary">
-                      {selectedCityId ? formatPrice(total + shippingCost) : formatPrice(total)}
+                      {selectedCityId ? formatPrice(total + shippingCost - discountAmount) : formatPrice(total - discountAmount)}
                     </span>
                   </div>
                 </div>
