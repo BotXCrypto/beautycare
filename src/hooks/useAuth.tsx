@@ -9,9 +9,11 @@ interface AuthContextType {
   session: Session | null;
   isAdmin: boolean;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, phone: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signUpWithPhone: (phone: string, fullName: string) => Promise<void>;
+  verifyPhoneOtp: (phone: string, otp: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -72,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, phone: string) => {
     try {
       const { error, data } = await supabase.auth.signUp({
         email,
@@ -81,12 +83,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailRedirectTo: `${window.location.origin}/auth`,
           data: {
             full_name: fullName,
+            phone: phone,
           },
         },
       });
 
       if (error) throw error;
       
+      // Save phone to profile after signup
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert(
+            {
+              id: data.user.id,
+              full_name: fullName,
+              phone: phone,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'id' }
+          );
+
+        if (profileError) console.error('Error saving profile:', profileError);
+      }
+
       // Note: With email confirmation required, user won't be auto-logged in
       toast({
         title: "Account created!",
@@ -165,8 +185,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const signUpWithPhone = async (phone: string, fullName: string) => {
+    try {
+      // Call a Supabase function to send OTP
+      const { error, data } = await supabase.functions.invoke('send-phone-otp', {
+        body: { phone, fullName },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "OTP sent!",
+        description: "Check your phone for the verification code.",
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Failed to send OTP",
+        description: error.message || "Please try again with a valid phone number",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const verifyPhoneOtp = async (phone: string, otp: string) => {
+    try {
+      // Call a Supabase function to verify OTP
+      const { error, data } = await supabase.functions.invoke('verify-phone-otp', {
+        body: { phone, otp },
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        // Create a session with the returned token
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+
+        if (sessionError) throw sessionError;
+
+        toast({
+          title: "Account verified!",
+          description: "Your account is ready to use.",
+        });
+      }
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || "Invalid OTP. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, isAdmin, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, isAdmin, loading, signUp, signIn, signInWithGoogle, signUpWithPhone, verifyPhoneOtp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

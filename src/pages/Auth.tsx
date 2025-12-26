@@ -10,15 +10,17 @@ import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
-type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
+type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'phone-signup' | 'phone-verify';
 
 const Auth = () => {
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, signInWithGoogle, user, isAdmin } = useAuth();
+  const { signIn, signUp, signUpWithPhone, verifyPhoneOtp, signInWithGoogle, user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,13 +49,60 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await signUp(email, password, fullName);
+      await signUp(email, password, fullName, phone);
       toast({
         title: "Verification email sent!",
         description: "Please check your email to verify your account.",
       });
     } catch (error) {
       console.error('Auth error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await signUpWithPhone(phone, fullName);
+      toast({
+        title: "OTP sent!",
+        description: "Check your phone for the 6-digit verification code.",
+      });
+      setMode('phone-verify');
+    } catch (error: any) {
+      console.error('Phone signup error:', error);
+      toast({
+        title: "Failed to send OTP",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePhoneVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await verifyPhoneOtp(phone, otp);
+      toast({
+        title: "Account created!",
+        description: "Your account is now verified. You can log in anytime.",
+      });
+      setMode('login');
+      setPhone('');
+      setOtp('');
+      setFullName('');
+    } catch (error: any) {
+      console.error('Phone verify error:', error);
+      toast({
+        title: "Verification failed",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -192,6 +241,19 @@ const Auth = () => {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                placeholder="+923001234567"
+                pattern="^\+?[0-9\s-()]{10,}"
+              />
+              <p className="text-xs text-muted-foreground">We'll use this to confirm your orders</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
@@ -205,11 +267,106 @@ const Auth = () => {
             </div>
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Sign Up
+              Sign Up with Email
             </Button>
             <p className="text-xs text-muted-foreground text-center">
               A verification email will be sent to confirm your account
             </p>
+            <div className="relative">
+              <Separator className="my-2" />
+              <span className="absolute left-1/2 -translate-x-1/2 -top-2.5 bg-background px-2 text-xs text-muted-foreground">OR</span>
+            </div>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => { setMode('phone-signup'); setEmail(''); setPassword(''); }}
+              className="w-full"
+              disabled={loading}
+            >
+              Sign Up with Phone
+            </Button>
+          </form>
+        );
+
+      case 'phone-signup':
+        return (
+          <form onSubmit={handlePhoneSignUp} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input
+                id="fullName"
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                placeholder="Enter your full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                required
+                placeholder="+923001234567"
+                pattern="^\+?[0-9\s-()]{10,}"
+              />
+              <p className="text-xs text-muted-foreground">We'll send a verification code to this number</p>
+            </div>
+            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Send Verification Code
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => { setMode('signup'); setPhone(''); setFullName(''); }}
+              className="w-full"
+              disabled={loading}
+            >
+              Back to Email Sign Up
+            </Button>
+          </form>
+        );
+
+      case 'phone-verify':
+        return (
+          <form onSubmit={handlePhoneVerify} className="space-y-4">
+            <div className="text-center mb-4">
+              <p className="text-sm text-muted-foreground">
+                Verification code sent to<br />
+                <span className="font-semibold text-foreground">{phone}</span>
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="otp">Verification Code</Label>
+              <Input
+                id="otp"
+                type="text"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                required
+                placeholder="000000"
+                maxLength={6}
+                className="text-center text-2xl tracking-widest font-mono"
+              />
+              <p className="text-xs text-muted-foreground text-center">Enter the 6-digit code</p>
+            </div>
+            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading || otp.length !== 6}>
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Verify & Create Account
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => { setMode('phone-signup'); setOtp(''); }}
+              className="w-full text-xs"
+              disabled={loading}
+            >
+              Didn't receive code? Resend
+            </Button>
           </form>
         );
 
@@ -264,6 +421,10 @@ const Auth = () => {
         return 'Welcome Back';
       case 'signup':
         return 'Create Account';
+      case 'phone-signup':
+        return 'Sign Up with Phone';
+      case 'phone-verify':
+        return 'Verify Your Number';
       case 'forgot-password':
         return 'Reset Password';
       case 'reset-password':
@@ -288,6 +449,16 @@ const Auth = () => {
           >
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to login
+          </button>
+        )}
+
+        {(mode === 'phone-signup' || mode === 'phone-verify') && (
+          <button
+            onClick={() => { setMode('signup'); setPhone(''); setOtp(''); setFullName(''); }}
+            className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back to email sign up
           </button>
         )}
 
