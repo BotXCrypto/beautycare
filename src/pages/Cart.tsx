@@ -327,6 +327,9 @@ const Cart = () => {
 
     console.log('Navigating to checkout with state:', checkoutState);
 
+    // Store in sessionStorage as backup (React Router state sometimes doesn't persist)
+    sessionStorage.setItem('checkoutData', JSON.stringify(checkoutState));
+
     navigate('/checkout', {
       state: checkoutState,
       replace: false

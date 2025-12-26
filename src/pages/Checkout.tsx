@@ -51,7 +51,7 @@ const Checkout = () => {
   });
 
   // Get location data from Cart page
-  const locationState = location.state as {
+  let locationState = location.state as {
     province?: string;
     cityId?: string;
     cityName?: string;
@@ -68,8 +68,21 @@ const Checkout = () => {
     };
   } | null;
 
-  const province = locationState?.province || '';
-  const cityId = locationState?.cityId || '';
+  // Fall back to sessionStorage if location.state is not available
+  if (!locationState) {
+    const stored = sessionStorage.getItem('checkoutData');
+    if (stored) {
+      try {
+        locationState = JSON.parse(stored);
+      } catch (e) {
+        console.error('Failed to parse sessionStorage checkout data:', e);
+      }
+    }
+  }
+
+  // Use state values directly - don't fall back to empty strings
+  const province = locationState?.province;
+  const cityId = locationState?.cityId;
   const cityName = locationState?.cityName || '';
   const baseShippingCost = locationState?.shippingCost || 0;
   const baseDeliveryDays = locationState?.deliveryDays || 0;
@@ -115,12 +128,13 @@ const Checkout = () => {
     return `${baseDeliveryDays}-${baseDeliveryDays + 3} days`;
   };
 
-  // Redirect to cart if no location selected
+  // Redirect to cart if no location data was provided
   useEffect(() => {
     console.log('Checkout location state:', { province, cityId, cityName, locationState });
     
-    if (!province || !cityId) {
-      console.warn('Location data missing, redirecting to cart');
+    // Only redirect if locationState is null (user came directly, not from cart)
+    if (locationState === null) {
+      console.warn('No location data provided, redirecting to cart');
       toast({
         title: "Location Required",
         description: "Please select your location from the cart page",
@@ -132,7 +146,7 @@ const Checkout = () => {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [province, cityId, navigate, locationState]);
+  }, []);
 
   // Validation functions
   const validateAddress = () => {
@@ -377,7 +391,7 @@ const Checkout = () => {
           .from('discount_codes')
           .select('used_count')
           .eq('code', discountCode)
-          .single();
+          .single() as any;
         
         if (!fetchError && codeData) {
           await supabase
