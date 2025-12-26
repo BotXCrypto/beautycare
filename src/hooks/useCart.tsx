@@ -7,6 +7,7 @@ export interface CartItem {
   id: string;
   product_id: string;
   quantity: number;
+  unit_price_override?: number | null;
   product: {
     id: string;
     title: string;
@@ -35,6 +36,7 @@ export function useCart() {
           id,
           product_id,
           quantity,
+          unit_price_override,
           product:products(id, title, price, image_url, stock)
         `)
         .eq('user_id', user.id);
@@ -57,7 +59,7 @@ export function useCart() {
     fetchCart();
   }, [user]);
 
-  const addToCart = async (productId: string, quantity: number = 1) => {
+  const addToCart = async (productId: string, quantity: number = 1, unitPrice?: number | null) => {
     if (!user) {
       toast({
         title: "Please login",
@@ -74,6 +76,7 @@ export function useCart() {
           user_id: user.id,
           product_id: productId,
           quantity,
+          unit_price_override: unitPrice ?? null,
         }, {
           onConflict: 'user_id,product_id',
         });
@@ -157,7 +160,10 @@ export function useCart() {
     }
   };
 
-  const total = items.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const total = items.reduce((sum, item) => {
+    const price = item.unit_price_override ?? item.product.price;
+    return sum + (price * item.quantity);
+  }, 0);
 
   return {
     items,

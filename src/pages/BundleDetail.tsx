@@ -99,8 +99,18 @@ const BundleDetail = () => {
 
     setAdding(true);
     try {
+      // When adding a bundle, calculate prorated unit price for each product
+      const originalPrice = bundle.products.reduce(
+        (sum, p) => sum + p.price * p.quantity,
+        0
+      );
+      const discountedPrice = originalPrice * (1 - bundle.discount_percentage / 100);
+
       for (const product of bundle.products) {
-        await addToCart(product.id, product.quantity);
+        // prorated factor across the bundle
+        const prorateFactor = originalPrice > 0 ? (discountedPrice / originalPrice) : 1;
+        const proratedUnitPrice = Math.round((product.price * prorateFactor + Number.EPSILON) * 100) / 100;
+        await addToCart(product.id, product.quantity, proratedUnitPrice);
       }
       toast({
         title: "Bundle Added!",

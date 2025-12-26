@@ -44,6 +44,9 @@ const Checkout = () => {
     addressLine1: '',
     addressLine2: '',
     postalCode: '',
+    area: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
 
   // Get location data from Cart page
@@ -133,6 +136,55 @@ const Checkout = () => {
     return data.publicUrl;
   };
 
+  const reverseGeocode = async (lat: number, lon: number) => {
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+      const res = await fetch(url, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'PureAndPeak/1.0 (contact@pureandpeak.example)'
+        }
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data;
+    } catch (err) {
+      console.error('Reverse geocode error', err);
+      return null;
+    }
+  };
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: 'Not supported', description: 'Geolocation is not supported by your browser', variant: 'destructive' });
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const geo = await reverseGeocode(lat, lon);
+      if (geo) {
+        const addr = geo.address || {};
+        const display = geo.display_name || '';
+        setAddress(prev => ({
+          ...prev,
+          addressLine1: display || prev.addressLine1,
+          postalCode: addr.postcode || prev.postalCode,
+          area: addr.suburb || addr.neighbourhood || addr.village || addr.town || prev.area,
+          latitude: lat,
+          longitude: lon,
+        }));
+        toast({ title: 'Location captured', description: 'We filled your address from current location' });
+      } else {
+        toast({ title: 'Location failed', description: 'Could not get address from location', variant: 'destructive' });
+      }
+    }, (err) => {
+      console.error('Geolocation error', err);
+      toast({ title: 'Location error', description: 'Unable to get current location', variant: 'destructive' });
+    }, { enableHighAccuracy: true, timeout: 10000 });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -214,7 +266,7 @@ const Checkout = () => {
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity,
-        price: item.product.price,
+        price: (item as any).unit_price_override ?? item.product.price,
       }));
 
       const { error: itemsError } = await supabase
@@ -292,6 +344,20 @@ const Checkout = () => {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="area">Area / Landmark</Label>
+                      <Button type="button" variant="ghost" size="sm" onClick={handleUseCurrentLocation}>
+                        Use current location
+                      </Button>
+                    </div>
+                    <Input
+                      id="area"
+                      placeholder="Neighborhood, landmark, e.g. Near City Mall"
+                      value={address.area}
+                      onChange={(e) => setAddress({ ...address, area: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="addressLine2">Address Line 2</Label>
                     <Input
                       id="addressLine2"
@@ -308,6 +374,11 @@ const Checkout = () => {
                       onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
                     />
                   </div>
+                  {address.latitude && address.longitude && (
+                    <div className="md:col-span-2 text-sm text-muted-foreground">
+                      Current coordinates: {address.latitude.toFixed(6)}, {address.longitude.toFixed(6)}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="mt-4 bg-muted/50 p-4 rounded-lg">
