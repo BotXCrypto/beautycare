@@ -117,15 +117,22 @@ const Checkout = () => {
 
   // Redirect to cart if no location selected
   useEffect(() => {
+    console.log('Checkout location state:', { province, cityId, cityName, locationState });
+    
     if (!province || !cityId) {
+      console.warn('Location data missing, redirecting to cart');
       toast({
         title: "Location Required",
         description: "Please select your location from the cart page",
         variant: "destructive",
       });
-      navigate('/cart');
+      // Use a small delay to ensure navigation completes
+      const timer = setTimeout(() => {
+        navigate('/cart', { replace: true });
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [province, cityId, navigate]);
+  }, [province, cityId, navigate, locationState]);
 
   // Validation functions
   const validateAddress = () => {
@@ -149,15 +156,13 @@ const Checkout = () => {
       errors.addressLine1 = 'Address must be at least 5 characters';
     }
 
-    if (!address.area.trim()) {
-      errors.area = 'Area/Landmark is required';
-    } else if (address.area.trim().length < 2) {
+    // Area is optional, only validate if provided
+    if (address.area.trim() && address.area.trim().length < 2) {
       errors.area = 'Area must be at least 2 characters';
     }
 
-    if (!address.postalCode.trim()) {
-      errors.postalCode = 'Postal code is required';
-    } else if (!/^\d{5}$/.test(address.postalCode.replace(/\s/g, ''))) {
+    // Postal code is optional, only validate if provided
+    if (address.postalCode.trim() && !/^\d{5}$/.test(address.postalCode.replace(/\s/g, ''))) {
       errors.postalCode = 'Postal code must be 5 digits';
     }
 
@@ -465,7 +470,7 @@ const Checkout = () => {
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="area">Area / Landmark *</Label>
+                      <Label htmlFor="area">Area / Landmark (optional)</Label>
                       <Button type="button" variant="ghost" size="sm" onClick={handleUseCurrentLocation}>
                         Use current location
                       </Button>
@@ -490,10 +495,9 @@ const Checkout = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="postalCode">Postal Code *</Label>
+                    <Label htmlFor="postalCode">Postal Code (optional)</Label>
                     <Input
                       id="postalCode"
-                      required
                       value={address.postalCode}
                       onChange={(e) => handleAddressChange('postalCode', e.target.value)}
                       className={validationErrors.postalCode ? 'border-red-500' : ''}

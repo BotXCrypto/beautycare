@@ -92,15 +92,13 @@ const Cart = () => {
       errors.streetAddress = 'Street address must be at least 5 characters';
     }
 
-    if (!deliveryDetails.area.trim()) {
-      errors.area = 'Area/Landmark is required';
-    } else if (deliveryDetails.area.trim().length < 2) {
+    // Area is optional, only validate if provided
+    if (deliveryDetails.area.trim() && deliveryDetails.area.trim().length < 2) {
       errors.area = 'Area must be at least 2 characters';
     }
 
-    if (!deliveryDetails.postalCode.trim()) {
-      errors.postalCode = 'Postal code is required';
-    } else if (!/^\d{5}$/.test(deliveryDetails.postalCode.replace(/\s/g, ''))) {
+    // Postal code is optional, only validate if provided
+    if (deliveryDetails.postalCode.trim() && !/^\d{5}$/.test(deliveryDetails.postalCode.replace(/\s/g, ''))) {
       errors.postalCode = 'Postal code must be 5 digits';
     }
 
@@ -292,9 +290,11 @@ const Cart = () => {
   };
 
   const handleProceedToCheckout = () => {
-    console.log('Proceed to checkout - Province:', selectedProvince, 'CityID:', selectedCityId);
+    console.log('Proceed to checkout clicked');
+    console.log('Current state:', { selectedProvince, selectedCityId, selectedCityName, shippingCost, deliveryDays, total });
     
     if (!selectedProvince || !selectedCityId) {
+      console.warn('Missing location:', { selectedProvince, selectedCityId });
       toast({
         title: "Location Required",
         description: "Please select your province and city before checking out.",
@@ -314,23 +314,22 @@ const Cart = () => {
       }
     }
 
-    console.log('Navigating to checkout with state:', {
+    const checkoutState = {
       province: selectedProvince,
       cityId: selectedCityId,
       cityName: selectedCityName,
-    });
+      shippingCost,
+      deliveryDays,
+      discountCode: appliedDiscount?.code,
+      discountAmount: discountAmount,
+      deliveryDetails: showDeliveryForm ? deliveryDetails : null,
+    };
+
+    console.log('Navigating to checkout with state:', checkoutState);
 
     navigate('/checkout', {
-      state: {
-        province: selectedProvince,
-        cityId: selectedCityId,
-        cityName: selectedCityName,
-        shippingCost,
-        deliveryDays,
-        discountCode: appliedDiscount?.code,
-        discountAmount: discountAmount,
-        deliveryDetails: showDeliveryForm ? deliveryDetails : null,
-      }
+      state: checkoutState,
+      replace: false
     });
   };
 
@@ -591,7 +590,7 @@ const Cart = () => {
                       )}
                     </div>
                     <div>
-                      <label className="text-xs font-semibold mb-1 block">Area / Landmark *</label>
+                      <label className="text-xs font-semibold mb-1 block">Area / Landmark (optional)</label>
                       <Input
                         placeholder="e.g., Near City Mall"
                         value={deliveryDetails.area}
@@ -603,7 +602,7 @@ const Cart = () => {
                       )}
                     </div>
                     <div>
-                      <label className="text-xs font-semibold mb-1 block">Postal Code *</label>
+                      <label className="text-xs font-semibold mb-1 block">Postal Code (optional)</label>
                       <Input
                         placeholder="e.g., 32200"
                         value={deliveryDetails.postalCode}
