@@ -38,6 +38,7 @@ const Checkout = () => {
   const [paymentType, setPaymentType] = useState<PaymentType>('COD');
   const [transactionId, setTransactionId] = useState('');
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [address, setAddress] = useState({
     fullName: '',
     phone: '',
@@ -125,6 +126,57 @@ const Checkout = () => {
       navigate('/cart');
     }
   }, [province, cityId, navigate]);
+
+  // Validation functions
+  const validateAddress = () => {
+    const errors: Record<string, string> = {};
+
+    if (!address.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (address.fullName.trim().length < 3) {
+      errors.fullName = 'Full name must be at least 3 characters';
+    }
+
+    if (!address.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^[0-9\s\-\+\(\)]{10,}$/.test(address.phone.replace(/\s/g, ''))) {
+      errors.phone = 'Please enter a valid phone number';
+    }
+
+    if (!address.addressLine1.trim()) {
+      errors.addressLine1 = 'Address is required';
+    } else if (address.addressLine1.trim().length < 5) {
+      errors.addressLine1 = 'Address must be at least 5 characters';
+    }
+
+    if (!address.area.trim()) {
+      errors.area = 'Area/Landmark is required';
+    } else if (address.area.trim().length < 2) {
+      errors.area = 'Area must be at least 2 characters';
+    }
+
+    if (!address.postalCode.trim()) {
+      errors.postalCode = 'Postal code is required';
+    } else if (!/^\d{5}$/.test(address.postalCode.replace(/\s/g, ''))) {
+      errors.postalCode = 'Postal code must be 5 digits';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddressChange = (field: string, value: string | null) => {
+    setAddress(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field on change
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -228,6 +280,16 @@ const Checkout = () => {
       toast({
         title: "Cart is empty",
         description: "Add items to cart before checkout",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate address fields
+    if (!validateAddress()) {
+      toast({
+        title: "Validation Failed",
+        description: "Please fix the errors in delivery address before placing order",
         variant: "destructive",
       });
       return;
@@ -367,8 +429,12 @@ const Checkout = () => {
                       id="fullName"
                       required
                       value={address.fullName}
-                      onChange={(e) => setAddress({ ...address, fullName: e.target.value })}
+                      onChange={(e) => handleAddressChange('fullName', e.target.value)}
+                      className={validationErrors.fullName ? 'border-red-500' : ''}
                     />
+                    {validationErrors.fullName && (
+                      <p className="text-xs text-red-500">{validationErrors.fullName}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone *</Label>
@@ -377,8 +443,12 @@ const Checkout = () => {
                       type="tel"
                       required
                       value={address.phone}
-                      onChange={(e) => setAddress({ ...address, phone: e.target.value })}
+                      onChange={(e) => handleAddressChange('phone', e.target.value)}
+                      className={validationErrors.phone ? 'border-red-500' : ''}
                     />
+                    {validationErrors.phone && (
+                      <p className="text-xs text-red-500">{validationErrors.phone}</p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="addressLine1">Address Line 1 *</Label>
@@ -386,12 +456,16 @@ const Checkout = () => {
                       id="addressLine1"
                       required
                       value={address.addressLine1}
-                      onChange={(e) => setAddress({ ...address, addressLine1: e.target.value })}
+                      onChange={(e) => handleAddressChange('addressLine1', e.target.value)}
+                      className={validationErrors.addressLine1 ? 'border-red-500' : ''}
                     />
+                    {validationErrors.addressLine1 && (
+                      <p className="text-xs text-red-500">{validationErrors.addressLine1}</p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="area">Area / Landmark</Label>
+                      <Label htmlFor="area">Area / Landmark *</Label>
                       <Button type="button" variant="ghost" size="sm" onClick={handleUseCurrentLocation}>
                         Use current location
                       </Button>
@@ -400,15 +474,19 @@ const Checkout = () => {
                       id="area"
                       placeholder="Neighborhood, landmark, e.g. Near City Mall"
                       value={address.area}
-                      onChange={(e) => setAddress({ ...address, area: e.target.value })}
+                      onChange={(e) => handleAddressChange('area', e.target.value)}
+                      className={validationErrors.area ? 'border-red-500' : ''}
                     />
+                    {validationErrors.area && (
+                      <p className="text-xs text-red-500">{validationErrors.area}</p>
+                    )}
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="addressLine2">Address Line 2</Label>
                     <Input
                       id="addressLine2"
                       value={address.addressLine2}
-                      onChange={(e) => setAddress({ ...address, addressLine2: e.target.value })}
+                      onChange={(e) => handleAddressChange('addressLine2', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -417,8 +495,12 @@ const Checkout = () => {
                       id="postalCode"
                       required
                       value={address.postalCode}
-                      onChange={(e) => setAddress({ ...address, postalCode: e.target.value })}
+                      onChange={(e) => handleAddressChange('postalCode', e.target.value)}
+                      className={validationErrors.postalCode ? 'border-red-500' : ''}
                     />
+                    {validationErrors.postalCode && (
+                      <p className="text-xs text-red-500">{validationErrors.postalCode}</p>
+                    )}
                   </div>
                   {address.latitude && address.longitude && (
                     <div className="md:col-span-2 text-sm text-muted-foreground">

@@ -65,8 +65,48 @@ const Cart = () => {
   });
 
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
+  
+  const [validationErrors, setValidationErrors] = useState<Partial<DeliveryDetails>>({});
 
-  const provinces = ['Punjab', 'Sindh', 'KPK', 'Balochistan', 'Gilgit-Baltistan'];
+  const provinces = ['Punjab', 'Sindh', 'Khyber Pakhtunkhwa', 'Balochistan', 'Azad Kashmir', 'Gilgit-Baltistan', 'Islamabad Capital Territory'];
+
+  // Validation functions
+  const validateDeliveryDetails = () => {
+    const errors: Partial<DeliveryDetails> = {};
+
+    if (!deliveryDetails.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (deliveryDetails.fullName.trim().length < 3) {
+      errors.fullName = 'Full name must be at least 3 characters';
+    }
+
+    if (!deliveryDetails.phoneNumber.trim()) {
+      errors.phoneNumber = 'Phone number is required';
+    } else if (!/^[0-9\s\-\+\(\)]{10,}$/.test(deliveryDetails.phoneNumber.replace(/\s/g, ''))) {
+      errors.phoneNumber = 'Please enter a valid phone number';
+    }
+
+    if (!deliveryDetails.streetAddress.trim()) {
+      errors.streetAddress = 'Street address is required';
+    } else if (deliveryDetails.streetAddress.trim().length < 5) {
+      errors.streetAddress = 'Street address must be at least 5 characters';
+    }
+
+    if (!deliveryDetails.area.trim()) {
+      errors.area = 'Area/Landmark is required';
+    } else if (deliveryDetails.area.trim().length < 2) {
+      errors.area = 'Area must be at least 2 characters';
+    }
+
+    if (!deliveryDetails.postalCode.trim()) {
+      errors.postalCode = 'Postal code is required';
+    } else if (!/^\d{5}$/.test(deliveryDetails.postalCode.replace(/\s/g, ''))) {
+      errors.postalCode = 'Postal code must be 5 digits';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   useEffect(() => {
     fetchCities();
@@ -153,12 +193,21 @@ const Cart = () => {
       return;
     }
 
+    if (discountCode.length < 3) {
+      toast({
+        title: "Invalid code",
+        description: "Discount code must be at least 3 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoadingDiscount(true);
     try {
       const { data, error } = await supabase
         .from('discount_codes')
         .select('*')
-        .eq('code', discountCode.toUpperCase())
+        .eq('code', discountCode.toUpperCase().trim())
         .eq('active', true)
         .single();
 
@@ -231,6 +280,15 @@ const Cart = () => {
 
   const handleDeliveryDetailsChange = (field: keyof DeliveryDetails, value: string) => {
     setDeliveryDetails(prev => ({ ...prev, [field]: value }));
+    
+    // Clear error for this field on change
+    if (validationErrors[field]) {
+      setValidationErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
 
   const handleProceedToCheckout = () => {
@@ -246,10 +304,10 @@ const Cart = () => {
     }
 
     if (showDeliveryForm) {
-      if (!deliveryDetails.fullName.trim() || !deliveryDetails.phoneNumber.trim() || !deliveryDetails.streetAddress.trim()) {
+      if (!validateDeliveryDetails()) {
         toast({
-          title: "Incomplete Details",
-          description: "Please fill in all required delivery fields.",
+          title: "Validation Failed",
+          description: "Please fix the errors in delivery details before proceeding.",
           variant: "destructive",
         });
         return;
@@ -502,8 +560,11 @@ const Cart = () => {
                         placeholder="Your name"
                         value={deliveryDetails.fullName}
                         onChange={(e) => handleDeliveryDetailsChange('fullName', e.target.value)}
-                        className="text-sm"
+                        className={`text-sm ${validationErrors.fullName ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.fullName && (
+                        <p className="text-xs text-red-500 mt-1">{validationErrors.fullName}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs font-semibold mb-1 block">Phone Number *</label>
@@ -511,8 +572,11 @@ const Cart = () => {
                         placeholder="+923001234567"
                         value={deliveryDetails.phoneNumber}
                         onChange={(e) => handleDeliveryDetailsChange('phoneNumber', e.target.value)}
-                        className="text-sm"
+                        className={`text-sm ${validationErrors.phoneNumber ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.phoneNumber && (
+                        <p className="text-xs text-red-500 mt-1">{validationErrors.phoneNumber}</p>
+                      )}
                     </div>
                     <div>
                       <label className="text-xs font-semibold mb-1 block">Street Address *</label>
@@ -520,26 +584,35 @@ const Cart = () => {
                         placeholder="House no., street name"
                         value={deliveryDetails.streetAddress}
                         onChange={(e) => handleDeliveryDetailsChange('streetAddress', e.target.value)}
-                        className="text-sm"
+                        className={`text-sm ${validationErrors.streetAddress ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.streetAddress && (
+                        <p className="text-xs text-red-500 mt-1">{validationErrors.streetAddress}</p>
+                      )}
                     </div>
                     <div>
-                      <label className="text-xs font-semibold mb-1 block">Area / Landmark</label>
+                      <label className="text-xs font-semibold mb-1 block">Area / Landmark *</label>
                       <Input
                         placeholder="e.g., Near City Mall"
                         value={deliveryDetails.area}
                         onChange={(e) => handleDeliveryDetailsChange('area', e.target.value)}
-                        className="text-sm"
+                        className={`text-sm ${validationErrors.area ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.area && (
+                        <p className="text-xs text-red-500 mt-1">{validationErrors.area}</p>
+                      )}
                     </div>
                     <div>
-                      <label className="text-xs font-semibold mb-1 block">Postal Code</label>
+                      <label className="text-xs font-semibold mb-1 block">Postal Code *</label>
                       <Input
                         placeholder="e.g., 32200"
                         value={deliveryDetails.postalCode}
                         onChange={(e) => handleDeliveryDetailsChange('postalCode', e.target.value)}
-                        className="text-sm"
+                        className={`text-sm ${validationErrors.postalCode ? 'border-red-500' : ''}`}
                       />
+                      {validationErrors.postalCode && (
+                        <p className="text-xs text-red-500 mt-1">{validationErrors.postalCode}</p>
+                      )}
                     </div>
                   </div>
                 )}

@@ -19,6 +19,7 @@ const Auth = () => {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const { signIn, signUp, signInWithGoogle, user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
@@ -32,8 +33,69 @@ const Auth = () => {
     }
   }, [user, isAdmin, navigate]);
 
+  // Validation functions
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateLoginForm = () => {
+    const errors: Record<string, string> = {};
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    return { errors, isValid: Object.keys(errors).length === 0 };
+  };
+
+  const validateSignUpForm = () => {
+    const errors: Record<string, string> = {};
+    if (!fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    } else if (fullName.trim().length < 3) {
+      errors.fullName = 'Full name must be at least 3 characters';
+    }
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    }
+    if (!phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^[0-9\s\-\+\(\)]{10,}$/.test(phone.replace(/\s/g, ''))) {
+      errors.phone = 'Please enter a valid phone number';
+    }
+    return { errors, isValid: Object.keys(errors).length === 0 };
+  };
+
+  const validateForgotPasswordForm = () => {
+    const errors: Record<string, string> = {};
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!validateEmail(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    return { errors, isValid: Object.keys(errors).length === 0 };
+  };
+
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { errors, isValid } = validateLoginForm();
+    setValidationErrors(errors);
+    
+    if (!isValid) return;
+    
     setLoading(true);
     try {
       await signIn(email, password);
@@ -46,6 +108,11 @@ const Auth = () => {
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { errors, isValid } = validateSignUpForm();
+    setValidationErrors(errors);
+    
+    if (!isValid) return;
+    
     setLoading(true);
     try {
       await signUp(email, password, fullName, phone);
@@ -75,6 +142,11 @@ const Auth = () => {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { errors, isValid } = validateForgotPasswordForm();
+    setValidationErrors(errors);
+    
+    if (!isValid) return;
+    
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -138,10 +210,12 @@ const Auth = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (validationErrors.email) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.email; return newErrors; }); }}
                 required
                 placeholder="Enter your email"
+                className={validationErrors.email ? 'border-red-500' : ''}
               />
+              {validationErrors.email && <p className="text-xs text-red-500">{validationErrors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -149,11 +223,13 @@ const Auth = () => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); if (validationErrors.password) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.password; return newErrors; }); }}
                 required
                 placeholder="Enter your password"
                 minLength={6}
+                className={validationErrors.password ? 'border-red-500' : ''}
               />
+              {validationErrors.password && <p className="text-xs text-red-500">{validationErrors.password}</p>}
             </div>
             <button
               type="button"
@@ -178,10 +254,12 @@ const Auth = () => {
                 id="fullName"
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => { setFullName(e.target.value); if (validationErrors.fullName) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.fullName; return newErrors; }); }}
                 required
                 placeholder="Enter your full name"
+                className={validationErrors.fullName ? 'border-red-500' : ''}
               />
+              {validationErrors.fullName && <p className="text-xs text-red-500">{validationErrors.fullName}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -189,10 +267,12 @@ const Auth = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (validationErrors.email) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.email; return newErrors; }); }}
                 required
                 placeholder="Enter your email"
+                className={validationErrors.email ? 'border-red-500' : ''}
               />
+              {validationErrors.email && <p className="text-xs text-red-500">{validationErrors.email}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
@@ -200,11 +280,12 @@ const Auth = () => {
                 id="phone"
                 type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => { setPhone(e.target.value); if (validationErrors.phone) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.phone; return newErrors; }); }}
                 required
                 placeholder="+923001234567"
-                pattern="^\+?[0-9\s-()]{10,}"
+                className={validationErrors.phone ? 'border-red-500' : ''}
               />
+              {validationErrors.phone && <p className="text-xs text-red-500">{validationErrors.phone}</p>}
               <p className="text-xs text-muted-foreground">We'll use this to confirm your orders</p>
             </div>
             <div className="space-y-2">
@@ -213,11 +294,13 @@ const Auth = () => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); if (validationErrors.password) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.password; return newErrors; }); }}
                 required
                 placeholder="Create a password"
                 minLength={6}
+                className={validationErrors.password ? 'border-red-500' : ''}
               />
+              {validationErrors.password && <p className="text-xs text-red-500">{validationErrors.password}</p>}
             </div>
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -243,10 +326,12 @@ const Auth = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); if (validationErrors.email) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.email; return newErrors; }); }}
                 required
                 placeholder="Enter your email"
+                className={validationErrors.email ? 'border-red-500' : ''}
               />
+              {validationErrors.email && <p className="text-xs text-red-500">{validationErrors.email}</p>}
             </div>
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -264,11 +349,13 @@ const Auth = () => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => { setPassword(e.target.value); if (validationErrors.password) setValidationErrors(prev => { const newErrors = {...prev}; delete newErrors.password; return newErrors; }); }}
                 required
                 placeholder="Enter new password"
                 minLength={6}
+                className={validationErrors.password ? 'border-red-500' : ''}
               />
+              {validationErrors.password && <p className="text-xs text-red-500">{validationErrors.password}</p>}
             </div>
             <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground" disabled={loading}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
