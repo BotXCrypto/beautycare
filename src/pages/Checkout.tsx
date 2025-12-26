@@ -384,21 +384,25 @@ const Checkout = () => {
 
       if (itemsError) throw itemsError;
 
-      // Track discount code usage if applied
+      // Track discount code usage if applied (optional - graceful fallback)
       if (discountCode && discountAmount > 0) {
-        // Increment used_count by 1
-        const { data: codeData, error: fetchError } = await supabase
-          .from('discount_codes')
-          .select('used_count')
-          .eq('code', discountCode)
-          .single() as any;
-        
-        if (!fetchError && codeData) {
-          await supabase
+        try {
+          // Attempt to track usage - this is optional and won't block order creation
+          const { data: codeData } = await supabase
             .from('discount_codes')
-            .update({ used_count: (codeData.used_count || 0) + 1 })
+            .select('used_count')
             .eq('code', discountCode)
-            .catch(err => console.error('Error tracking discount code usage:', err));
+            .single();
+          
+          if (codeData) {
+            await supabase
+              .from('discount_codes')
+              .update({ used_count: (codeData.used_count || 0) + 1 })
+              .eq('code', discountCode);
+          }
+        } catch (err) {
+          // Silently fail - discount tracking is not critical to order creation
+          console.debug('Discount code usage tracking skipped:', err);
         }
       }
 
