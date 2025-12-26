@@ -30,19 +30,38 @@ export function useCart() {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('cart_items')
-        .select(`
-          id,
-          product_id,
-          quantity,
-          unit_price_override,
-          product:products(id, title, price, image_url, stock)
-        `)
-        .eq('user_id', user.id);
+      // Try selecting with `unit_price_override`. If the column does not exist
+      // in the DB (older deployments), fall back to selecting without it.
+      try {
+        const { data, error } = await supabase
+          .from('cart_items')
+          .select(`
+            id,
+            product_id,
+            quantity,
+            unit_price_override,
+            product:products(id, title, price, image_url, stock)
+          `)
+          .eq('user_id', user.id);
 
-      if (error) throw error;
-      setItems(data as CartItem[]);
+        if (error) throw error;
+        setItems(data as CartItem[]);
+      } catch (innerErr: any) {
+        // Fallback: try without unit_price_override
+        const { data, error } = await supabase
+          .from('cart_items')
+          .select(`
+            id,
+            product_id,
+            quantity,
+            product:products(id, title, price, image_url, stock)
+          `)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+        // Map to CartItem shape without unit_price_override
+        setItems((data as any[]).map(d => ({ ...d, unit_price_override: null })) as CartItem[]);
+      }
     } catch (error: any) {
       console.error('Error fetching cart:', error);
       toast({
@@ -70,18 +89,37 @@ export function useCart() {
     }
 
     try {
-      const { error } = await supabase
-        .from('cart_items')
-        .upsert({
+      // Try to upsert including unit_price_override if provided. If the
+      // column does not exist on older DBs, fall back to upserting without it.
+      try {
+        const payload: any = {
           user_id: user.id,
           product_id: productId,
           quantity,
-          unit_price_override: unitPrice ?? null,
-        }, {
-          onConflict: 'user_id,product_id',
-        });
+        };
+        if (typeof unitPrice !== 'undefined') payload.unit_price_override = unitPrice ?? null;
 
-      if (error) throw error;
+        const { error } = await supabase
+          .from('cart_items')
+          .upsert(payload, { onConflict: 'user_id,product_id' });
+
+        if (error) throw error;
+      } catch (err) {
+        // Attempt fallback without unit_price_override
+        try {
+          const { error } = await supabase
+            .from('cart_items')
+            .upsert({
+              user_id: user.id,
+              product_id: productId,
+              quantity,
+            }, { onConflict: 'user_id,product_id' });
+
+          if (error) throw error;
+        } catch (err2: any) {
+          throw err2;
+        }
+      }
 
       toast({
         title: "Added to cart",
