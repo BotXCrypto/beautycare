@@ -29,7 +29,7 @@ const COD_CHARGE_DG_KHAN = 150;
 const COD_CHARGE_BASE = 50;
 
 const Checkout = () => {
-  const { items, total, clearCart } = useCart();
+  const { items, total, clearCart, loading: cartLoading } = useCart();
   const { user } = useAuth();
   const { formatPrice } = useCurrency();
   const navigate = useNavigate();
@@ -428,10 +428,12 @@ const Checkout = () => {
     }
   };
 
-  if (items.length === 0) {
-    navigate('/cart');
-    return null;
-  }
+  // Avoid calling navigate during render; redirect only after cart load finishes
+  useEffect(() => {
+    if (!cartLoading && items.length === 0) {
+      navigate('/cart');
+    }
+  }, [cartLoading, items.length, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col">

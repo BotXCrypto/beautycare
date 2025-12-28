@@ -102,6 +102,13 @@ const Cart = () => {
       errors.postalCode = 'Postal code must be 5 digits';
     }
 
+    // Log validation result for debugging
+    if (Object.keys(errors).length > 0) {
+      console.debug('Delivery details validation failed:', errors, 'current:', deliveryDetails);
+    } else {
+      console.debug('Delivery details validation passed', deliveryDetails);
+    }
+
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -291,10 +298,10 @@ const Cart = () => {
 
   const handleProceedToCheckout = () => {
     console.log('Proceed to checkout clicked');
-    console.log('Current state:', { selectedProvince, selectedCityId, selectedCityName, shippingCost, deliveryDays, total });
+    console.log('Current state:', { selectedProvince, selectedCityId, selectedCityName, shippingCost, deliveryDays, total, showDeliveryForm });
     
     if (!selectedProvince || !selectedCityId) {
-      console.warn('Missing location:', { selectedProvince, selectedCityId });
+      console.warn('Missing location - cannot proceed:', { selectedProvince, selectedCityId });
       toast({
         title: "Location Required",
         description: "Please select your province and city before checking out.",
@@ -304,7 +311,9 @@ const Cart = () => {
     }
 
     if (showDeliveryForm) {
-      if (!validateDeliveryDetails()) {
+      const valid = validateDeliveryDetails();
+      if (!valid) {
+        console.warn('Delivery details invalid, aborting checkout. Errors:', validationErrors);
         toast({
           title: "Validation Failed",
           description: "Please fix the errors in delivery details before proceeding.",

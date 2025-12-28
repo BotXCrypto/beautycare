@@ -33,37 +33,93 @@ export function useCart() {
 
     try {
       setLoading(true);
-      // Try selecting with `unit_price_override`. If the column does not exist
-      // in the DB (older deployments), fall back to selecting without it.
-      try {
-        const { data, error } = await supabase
-          .from('cart_items')
-          .select(`
-            id,
-            product_id,
-            quantity,
-            unit_price_override,
-            product:products(id, title, price, image_url, stock)
-          `)
-          .eq('user_id', user.id);
+      // Robust fetching with retries and fallbacks. Some DB deployments
+      // may lack columns or relational definitions which cause 400.
+      const maxAttempts = 3;
+      const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-        if (error) throw error;
-        setItems(data as CartItem[]);
-      } catch (innerErr: any) {
-        // Fallback: try without unit_price_override
-        const { data, error } = await supabase
-          .from('cart_items')
-          .select(`
-            id,
-            product_id,
-            quantity,
-            product:products(id, title, price, image_url, stock)
-          `)
-          .eq('user_id', user.id);
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          console.debug(`fetchCart attempt ${attempt}`);
+          // First attempt: try full select with unit_price_override
+          const { data, error } = await supabase
+            .from('cart_items')
+            .select(`
+              id,
+              product_id,
+              quantity,
+              unit_price_override,
+              product:products(id, title, price, image_url, stock)
+            `)
+            .eq('user_id', user.id);
 
-        if (error) throw error;
-        // Map to CartItem shape without unit_price_override
-        setItems((data as any[]).map(d => ({ ...d, unit_price_override: null })) as CartItem[]);
+          if (!error && data) {
+            setItems(data as CartItem[]);
+            break;
+          }
+
+          // If we get a client error (400) or unknown column, attempt fallback
+          // to a safer query that fetches cart_items and then fetches products
+          console.warn('Initial cart_items select failed', { attempt, error });
+
+          // Fetch cart_items without relational product field
+          const { data: ciData, error: ciError } = await supabase
+            .from('cart_items')
+            .select(`id, product_id, quantity, unit_price_override`)
+            .eq('user_id', user.id);
+
+          if (ciError) {
+            // For server errors, retry a few times
+            if (attempt < maxAttempts && (ciError?.status === 502 || ciError?.status === 503 || ciError?.status === 504)) {
+              const backoff = attempt * 300;
+              console.debug(`Transient error fetching cart_items, retrying in ${backoff}ms`, ciError);
+              await sleep(backoff);
+              continue;
+            }
+            throw ciError;
+          }
+
+          const cartRows = (ciData as any[]) || [];
+          const productIds = Array.from(new Set(cartRows.map(r => r.product_id))).filter(Boolean);
+
+          // If there are no products, set items to empty
+          if (productIds.length === 0) {
+            setItems([]);
+            break;
+          }
+
+          // Fetch products separately and merge
+          const { data: productsData, error: prodErr } = await supabase
+            .from('products')
+            .select('id, title, price, image_url, stock')
+            .in('id', productIds);
+
+          if (prodErr) {
+            throw prodErr;
+          }
+
+          const prodMap = new Map<string, any>();
+          (productsData || []).forEach((p: any) => prodMap.set(p.id, p));
+
+          const merged: CartItem[] = cartRows.map(r => ({
+            id: r.id,
+            product_id: r.product_id,
+            quantity: r.quantity,
+            unit_price_override: r.unit_price_override ?? null,
+            product: prodMap.get(r.product_id) || { id: r.product_id, title: 'Unknown', price: 0, image_url: '', stock: 0 }
+          }));
+
+          setItems(merged);
+          break;
+        } catch (err: any) {
+          console.error(`fetchCart attempt ${attempt} error:`, err);
+          if (attempt < maxAttempts) {
+            const backoff = attempt * 300;
+            await sleep(backoff);
+            continue;
+          }
+          throw err;
+        }
       }
     } catch (error: any) {
       console.error('Error fetching cart:', error);
