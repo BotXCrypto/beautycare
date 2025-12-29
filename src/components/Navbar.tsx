@@ -33,10 +33,15 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
+
           <Link to="/" className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-primary to-accent rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">Pure</span>
-            </div>
+
+            <img
+              src="/logo.png"
+              alt="Pure & Peak Logo"
+              className="h-10 w-auto object-contain transition-transform hover:scale-105"
+            />
+            {/* If you want to keep the text next to it, leave this. Otherwise, delete it. */}
             <span className="text-xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Pure & Peak
             </span>
@@ -92,7 +97,7 @@ const Navbar = () => {
                 )}
               </Button>
             </Link>
-            
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
