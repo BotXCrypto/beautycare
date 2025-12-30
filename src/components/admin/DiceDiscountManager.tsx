@@ -6,14 +6,14 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
-// import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Mock data since DB is not yet migrated
-const MOCK_SETTINGS = {
-  dice_discount_enabled: false,
-  dice_max_discount_percentage: 15,
-  dice_allowed_pages: ['cart', 'checkout'],
-  dice_reward_map: {
+type RewardMap = {
+  [key: string]: { type: string; value: number | null; label: string };
+};
+
+const DEFAULT_REWARD_MAP: RewardMap = {
     '2': { type: 'free_shipping', value: 0, label: 'Free Shipping' },
     '3': { type: 'free_shipping', value: 0, label: 'Free Shipping' },
     '4': { type: 'free_shipping', value: 0, label: 'Free Shipping' },
@@ -25,56 +25,65 @@ const MOCK_SETTINGS = {
     '10': { type: 'percentage', value: 10, label: '10% Discount' },
     '11': { type: 'free_gift', value: null, label: 'Free Gift' },
     '12': { type: 'percentage', value: 12, label: '12% Discount' },
-  },
 };
 
-type RewardMap = typeof MOCK_SETTINGS.dice_reward_map;
-
 export const DiceDiscountManager = () => {
-  const [enabled, setEnabled] = useState(MOCK_SETTINGS.dice_discount_enabled);
-  const [maxDiscount, setMaxDiscount] = useState(MOCK_SETTINGS.dice_max_discount_percentage);
-  const [allowedPages, setAllowedPages] = useState(MOCK_SETTINGS.dice_allowed_pages.join(', '));
-  const [rewardMap, setRewardMap] = useState<RewardMap>(MOCK_SETTINGS.dice_reward_map);
-  const [loading, setLoading] = useState(false);
+  const [enabled, setEnabled] = useState<boolean>(false);
+  const [maxDiscount, setMaxDiscount] = useState<number>(15);
+  const [allowedPages, setAllowedPages] = useState<string>('cart');
+  const [rewardMap, setRewardMap] = useState<RewardMap>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // TODO: Replace with actual data fetching when DB is ready
-  // useEffect(() => {
-  //   const fetchSettings = async () => {
-  //     setLoading(true);
-  //     const { data, error } = await supabase.from('admin_settings').select('key, value');
-  //     if (error) {
-  //       toast({ title: 'Error fetching settings', description: error.message, variant: 'destructive' });
-  //     } else {
-  //       // Process data into state
-  //     }
-  //     setLoading(false);
-  //   };
-  //   fetchSettings();
-  // }, []);
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from('admin_settings').select('key, value');
+      
+      if (error) {
+        toast({ title: 'Error fetching settings', description: error.message, variant: 'destructive' });
+      } else if (data) {
+        const settings: { [key: string]: any } = data.reduce((acc, { key, value }) => {
+          acc[key] = value;
+          return acc;
+        }, {} as { [key: string]: any });
+
+        setEnabled(settings.dice_discount_enabled ?? false);
+        setMaxDiscount(settings.dice_max_discount_percentage ?? 15);
+        setAllowedPages((settings.dice_allowed_pages ?? ['cart']).join(', '));
+        setRewardMap(settings.dice_reward_map ?? DEFAULT_REWARD_MAP);
+      }
+      setLoading(false);
+    };
+    fetchSettings();
+  }, []);
 
   const handleSave = async () => {
-    setLoading(true);
-    toast({
-      title: 'Saving settings...',
-      description: 'This is a mock-up. No data will be saved.',
-    });
-    // TODO: Replace with actual data saving when DB is ready
-    // const updates = [
-    //   { key: 'dice_discount_enabled', value: enabled },
-    //   { key: 'dice_max_discount_percentage', value: maxDiscount },
-    //   { key: 'dice_allowed_pages', value: allowedPages.split(',').map(p => p.trim()) },
-    //   { key: 'dice_reward_map', value: rewardMap },
-    // ];
-    // const { error } = await supabase.from('admin_settings').upsert(updates);
-    // if (error) {
-    //   toast({ title: 'Error saving settings', description: error.message, variant: 'destructive' });
-    // } else {
-    //   toast({ title: 'Settings saved!', description: 'Dice discount settings have been updated.' });
-    // }
-    setTimeout(() => {
-      setLoading(false);
-      toast({ title: 'Mock-up complete', description: 'Settings were not saved.' });
-    }, 1000);
+    setSaving(true);
+    
+    const updates = [
+      { key: 'dice_discount_enabled', value: enabled },
+      { key: 'dice_max_discount_percentage', value: maxDiscount },
+      { key: 'dice_allowed_pages', value: allowedPages.split(',').map(p => p.trim()) },
+      { key: 'dice_reward_map', value: rewardMap },
+    ];
+
+    // In Supabase, you often upsert settings one by one if they are rows
+    // My schema has a `key` column, so I can map over them.
+    const promises = updates.map(update => 
+      supabase.from('admin_settings').update({ value: update.value }).eq('key', update.key)
+    );
+    
+    const results = await Promise.all(promises);
+    const someError = results.some(res => res.error);
+
+    if (someError) {
+      toast({ title: 'Error saving settings', description: 'One or more settings failed to save.', variant: 'destructive' });
+      console.error('Settings save errors:', results.map(r => r.error).filter(Boolean));
+    } else {
+      toast({ title: 'Settings saved!', description: 'Dice discount settings have been updated.' });
+    }
+    setSaving(false);
   };
 
   const handleRewardMapChange = (diceTotal: string, field: 'type' | 'value' | 'label', newValue: any) => {
@@ -86,6 +95,27 @@ export const DiceDiscountManager = () => {
       },
     }));
   };
+
+  if (loading) {
+    return (
+        <Card>
+            <CardHeader>
+                <Skeleton className="h-8 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <div className="space-y-2 pt-4">
+                    <Skeleton className="h-6 w-1/4" />
+                    <Skeleton className="h-48 w-full" />
+                </div>
+                <Skeleton className="h-10 w-24" />
+            </CardContent>
+        </Card>
+    )
+  }
 
   return (
     <Card>
@@ -173,8 +203,8 @@ export const DiceDiscountManager = () => {
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={loading}>
-          {loading ? 'Saving...' : 'Save Settings'}
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Settings'}
         </Button>
       </CardContent>
     </Card>
