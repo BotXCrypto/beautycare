@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import DiceRoll from '@/components/DiceRoll';
 
 interface City {
   id: string;
@@ -55,6 +56,13 @@ const Cart = () => {
   const [appliedDiscount, setAppliedDiscount] = useState<DiscountCode | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [loadingDiscount, setLoadingDiscount] = useState(false);
+
+  // Dice Roll Feature State
+  const [diceRollEnabled, setDiceRollEnabled] = useState(true); // Mocked for now
+  const [diceReward, setDiceReward] = useState<any>(null);
+  const [diceDiscountAmount, setDiceDiscountAmount] = useState(0);
+  const [hasRolled, setHasRolled] = useState(false);
+  const [diceFreeShipping, setDiceFreeShipping] = useState(false);
 
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails>({
     fullName: '',
@@ -266,6 +274,31 @@ const Cart = () => {
     setDiscountCode('');
   };
 
+  const handleDiceRollComplete = (reward: { type: string; value: number | null; label: string; diceTotal: number }) => {
+    setHasRolled(true);
+    setDiceReward(reward);
+
+    if (reward.type === 'percentage' && reward.value) {
+      const amount = (total * reward.value) / 100;
+      setDiceDiscountAmount(amount);
+      toast({
+        title: 'Discount Applied!',
+        description: `You got a ${reward.value}% discount!`,
+      });
+    } else if (reward.type === 'free_shipping') {
+      setDiceFreeShipping(true);
+      toast({
+        title: 'Free Shipping Unlocked!',
+        description: 'Your shipping is now free.',
+      });
+    } else if (reward.type === 'free_gift') {
+        toast({
+            title: 'You won a Free Gift!',
+            description: 'A special gift will be added to your order.',
+        });
+    }
+  };
+
   const handleProvinceChange = (province: string) => {
     setSelectedProvince(province);
     setSelectedCityId('');
@@ -327,10 +360,12 @@ const Cart = () => {
       province: selectedProvince,
       cityId: selectedCityId,
       cityName: selectedCityName,
-      shippingCost,
+      shippingCost: (isFreeShipping || diceFreeShipping) ? 0 : shippingCost,
       deliveryDays,
       discountCode: appliedDiscount?.code,
       discountAmount: discountAmount,
+      diceReward: diceReward,
+      diceDiscountAmount: diceDiscountAmount,
       deliveryDetails: showDeliveryForm ? deliveryDetails : null,
     };
 
@@ -629,25 +664,45 @@ const Cart = () => {
                 )}
               </div>
 
+              {/* Dice Roll Section */}
+              {diceRollEnabled && items.length > 0 && (
+                <div className="border-t pt-4 mt-4">
+                  {!hasRolled ? (
+                    <DiceRoll onRollComplete={handleDiceRollComplete} />
+                  ) : (
+                    <div className="bg-green-50 border border-green-200 rounded p-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Gift className="w-4 h-4 text-green-600" />
+                        <span className="text-sm font-bold text-green-800">
+                          Reward Applied: {diceReward.label}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="border-t pt-4 mt-4">
                 <h2 className="text-lg font-bold mb-3">Discount Code</h2>
-                {!appliedDiscount ? (
+                {!appliedDiscount && !hasRolled && (
                   <div className="flex gap-2">
                     <Input
                       placeholder="Enter code"
                       value={discountCode}
                       onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
                       className="text-sm"
+                      disabled={hasRolled}
                     />
                     <Button
                       size="sm"
                       onClick={applyDiscountCode}
-                      disabled={loadingDiscount || !discountCode}
+                      disabled={loadingDiscount || !discountCode || hasRolled}
                     >
                       {loadingDiscount ? "..." : "Apply"}
                     </Button>
                   </div>
-                ) : (
+                )}
+                {appliedDiscount && !hasRolled && (
                   <div className="bg-green-50 border border-green-200 rounded p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -666,6 +721,9 @@ const Cart = () => {
                     <p className="text-xs text-green-700">Saved: {formatPrice(discountAmount)}</p>
                   </div>
                 )}
+                {hasRolled && (
+                    <p className="text-xs text-center text-muted-foreground">Discount code is disabled when a dice reward is active.</p>
+                )}
               </div>
 
               <div className="border-t pt-4 mt-4">
@@ -681,22 +739,28 @@ const Cart = () => {
                     <span>
                       {!selectedCityId ? (
                         <span className="text-muted-foreground">Select location</span>
-                      ) : isFreeShipping ? (
+                      ) : (isFreeShipping || diceFreeShipping) ? (
                         <span className="text-green-600 font-semibold">FREE</span>
                       ) : (
                         formatPrice(shippingCost)
                       )}
                     </span>
                   </div>
-                  {isFreeShipping && (
+                  {(isFreeShipping || diceFreeShipping) && (
                     <div className="text-sm text-green-600 font-medium">
-                      Free Shipping Applied
+                      {diceFreeShipping ? 'Dice Roll: Free Shipping!' : 'Free Shipping Applied'}
                     </div>
                   )}
                   {appliedDiscount && discountAmount > 0 && (
                     <div className="flex justify-between text-green-600 font-semibold">
                       <span>Discount ({appliedDiscount.code}):</span>
                       <span>-{formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
+                  {diceReward && diceDiscountAmount > 0 && (
+                    <div className="flex justify-between text-green-600 font-semibold">
+                      <span>Dice Reward ({diceReward.label}):</span>
+                      <span>-{formatPrice(diceDiscountAmount)}</span>
                     </div>
                   )}
                   {deliveryDays > 0 && (
@@ -707,7 +771,7 @@ const Cart = () => {
                   <div className="border-t pt-2 flex justify-between text-xl font-bold">
                     <span>Total:</span>
                     <span className="text-primary">
-                      {selectedCityId ? formatPrice(total + shippingCost - discountAmount) : formatPrice(total - discountAmount)}
+                      {selectedCityId ? formatPrice(total + ((isFreeShipping || diceFreeShipping) ? 0 : shippingCost) - discountAmount - diceDiscountAmount) : formatPrice(total - discountAmount - diceDiscountAmount)}
                     </span>
                   </div>
                 </div>

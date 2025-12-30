@@ -59,6 +59,8 @@ const Checkout = () => {
     deliveryDays?: number;
     discountCode?: string;
     discountAmount?: number;
+    diceReward?: any;
+    diceDiscountAmount?: number;
     deliveryDetails?: {
       fullName: string;
       phoneNumber: string;
@@ -88,8 +90,10 @@ const Checkout = () => {
   const baseDeliveryDays = locationState?.deliveryDays || 0;
   const discountCode = locationState?.discountCode || '';
   const discountAmount = locationState?.discountAmount || 0;
+  const diceReward = locationState?.diceReward;
+  const diceDiscountAmount = locationState?.diceDiscountAmount || 0;
   const deliveryDetailsFromCart = locationState?.deliveryDetails;
-  const isFreeShipping = baseShippingCost === 0 && total >= 100000;
+  const isFreeShipping = baseShippingCost === 0;
 
   // Pre-fill address from cart delivery details if provided
   useEffect(() => {
@@ -118,14 +122,12 @@ const Checkout = () => {
 
   const codCharge = getCODCharge();
   const finalShippingCost = isFreeShipping ? 0 : baseShippingCost;
-  const grandTotal = total - discountAmount + finalShippingCost + codCharge;
+  const grandTotal = total - discountAmount - diceDiscountAmount + finalShippingCost + codCharge;
 
   // Get delivery time range
   const getDeliveryTimeRange = () => {
-    if (isDGKhan) return '1-2 days';
-    if (baseDeliveryDays <= 3) return `${baseDeliveryDays}-${baseDeliveryDays + 1} days`;
-    if (baseDeliveryDays <= 5) return `${baseDeliveryDays}-${baseDeliveryDays + 2} days`;
-    return `${baseDeliveryDays}-${baseDeliveryDays + 3} days`;
+    if (isDGKhan) return 'one Day';
+    return '3-4 Days';
   };
 
   // Redirect to cart if no location data was provided
@@ -160,8 +162,8 @@ const Checkout = () => {
 
     if (!address.phone.trim()) {
       errors.phone = 'Phone number is required';
-    } else if (!/^[0-9\s\-\+\(\)]{10,}$/.test(address.phone.replace(/\s/g, ''))) {
-      errors.phone = 'Please enter a valid phone number';
+    } else if (!/^03\d{2}-?\d{7}$/.test(address.phone.trim())) {
+      errors.phone = 'Please use the format 03XX-XXXXXXX or 03XXXXXXXXX';
     }
 
     if (!address.addressLine1.trim()) {
@@ -353,6 +355,9 @@ const Checkout = () => {
           payment_type: paymentType,
           payment_status: paymentStatus,
           status: 'Pending',
+          dice_rolled: !!diceReward,
+          dice_result: diceReward ? diceReward.diceTotal : null,
+          applied_reward: diceReward,
           address: {
             ...address,
             province: province,
@@ -363,6 +368,7 @@ const Checkout = () => {
             shippingCost: finalShippingCost,
             discountCode: discountCode || null,
             discountAmount: discountAmount || 0,
+            diceDiscountAmount: diceDiscountAmount || 0,
           },
         })
         .select()
@@ -785,6 +791,12 @@ const Checkout = () => {
                   <div className="flex justify-between text-green-600 font-semibold">
                     <span>Discount {discountCode ? `(${discountCode})` : ''}:</span>
                     <span>-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
+                {diceDiscountAmount > 0 && (
+                  <div className="flex justify-between text-green-600 font-semibold">
+                    <span>Dice Reward {diceReward ? `(${diceReward.label})` : ''}:</span>
+                    <span>-{formatPrice(diceDiscountAmount)}</span>
                   </div>
                 )}
                 {paymentType === 'COD' && codCharge > 0 && (

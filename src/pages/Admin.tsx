@@ -20,6 +20,7 @@ import { VariantManager } from '@/components/admin/VariantManager';
 import { QRScanner } from '@/components/admin/QRScanner';
 import { StockBadge } from '@/components/product/StockBadge';
 import { OrderManager } from '@/components/admin/OrderManager';
+import { DiceDiscountManager } from '@/components/admin/DiceDiscountManager';
 
 interface Product {
   id: string;
@@ -515,6 +516,7 @@ const Admin = () => {
           <TabsList>
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="promotions">Promotions</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="payments" className="relative">
               Payments
@@ -725,6 +727,10 @@ const Admin = () => {
 
           <TabsContent value="categories">
             <CategoryManager />
+          </TabsContent>
+
+          <TabsContent value="promotions">
+            <DiceDiscountManager />
           </TabsContent>
 
           <TabsContent value="orders">
