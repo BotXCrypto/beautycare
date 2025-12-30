@@ -65,7 +65,7 @@ export function useCart() {
           // Fetch cart_items without relational product field
           const { data: ciData, error: ciError } = await supabase
             .from('cart_items')
-            .select(`id, product_id, quantity, unit_price_override`)
+            .select(`id, product_id, quantity`)
             .eq('user_id', user.id);
 
           if (ciError) {

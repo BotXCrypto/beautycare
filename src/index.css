@@ -239,7 +239,60 @@ All colors MUST be HSL.
   }
 
   /* Soft focus effect for beauty images */
-  .beauty-image {
-    @apply rounded-2xl overflow-hidden shadow-lg;
+    .beauty-image {
+      @apply rounded-2xl overflow-hidden shadow-lg;
+    }
   }
-}
+  
+  /* 2D Dice Roll Animation */
+  @layer utilities {
+    .dice-container {
+      @apply flex justify-center items-center gap-4 h-32;
+    }
+  
+    .die {
+      @apply w-20 h-20 bg-white rounded-lg shadow-md p-2 transition-transform duration-1000;
+    }
+    
+    .die-face {
+      @apply grid grid-cols-3 grid-rows-3 w-full h-full;
+    }
+  
+    .dot {
+      @apply w-4 h-4 bg-gray-800 rounded-full self-center justify-self-center;
+    }
+  
+    /* Dot positions for a 3x3 grid */
+    .face-1 .dot:nth-child(1) { @apply col-start-2 row-start-2; }
+    .face-2 .dot:nth-child(1) { @apply col-start-1 row-start-1; }
+    .face-2 .dot:nth-child(2) { @apply col-start-3 row-start-3; }
+    .face-3 .dot:nth-child(1) { @apply col-start-1 row-start-1; }
+    .face-3 .dot:nth-child(2) { @apply col-start-2 row-start-2; }
+    .face-3 .dot:nth-child(3) { @apply col-start-3 row-start-3; }
+    .face-4 .dot:nth-child(1) { @apply col-start-1 row-start-1; }
+    .face-4 .dot:nth-child(2) { @apply col-start-3 row-start-1; }
+    .face-4 .dot:nth-child(3) { @apply col-start-1 row-start-3; }
+    .face-4 .dot:nth-child(4) { @apply col-start-3 row-start-3; }
+    .face-5 .dot:nth-child(1) { @apply col-start-1 row-start-1; }
+    .face-5 .dot:nth-child(2) { @apply col-start-3 row-start-1; }
+    .face-5 .dot:nth-child(3) { @apply col-start-2 row-start-2; }
+    .face-5 .dot:nth-child(4) { @apply col-start-1 row-start-3; }
+    .face-5 .dot:nth-child(5) { @apply col-start-3 row-start-3; }
+    .face-6 .dot:nth-child(1) { @apply col-start-1 row-start-1; }
+    .face-6 .dot:nth-child(2) { @apply col-start-3 row-start-1; }
+    .face-6 .dot:nth-child(3) { @apply col-start-1 row-start-2; }
+    .face-6 .dot:nth-child(4) { @apply col-start-3 row-start-2; }
+    .face-6 .dot:nth-child(5) { @apply col-start-1 row-start-3; }
+    .face-6 .dot:nth-child(6) { @apply col-start-3 row-start-3; }
+  
+    .rolling {
+      animation: roll 1s ease-in-out;
+    }
+  
+    @keyframes roll {
+      0% { transform: rotate(0deg) scale(1); }
+      50% { transform: rotate(360deg) scale(0.5); }
+      100% { transform: rotate(720deg) scale(1); }
+    }
+  }
+  
