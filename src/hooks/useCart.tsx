@@ -39,7 +39,7 @@ export function useCart() {
       // The code will gracefully handle if they are missing from the result.
       const { data: cartRows, error: ciError } = await supabase
         .from('cart_items')
-        .select('*')
+        .select('id,product_id,quantity,unit_price_override,bundle_id,bundle_name,bundle_discount_percentage')
         .eq('user_id', user.id);
 
       if (ciError) {
