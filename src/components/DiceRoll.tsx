@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier';
-import { OrbitControls, Environment, CanvasTexture } from '@react-three/drei';
+import { OrbitControls, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 
 interface DiceRollProps {
@@ -27,7 +27,7 @@ const createDiceTexture = (value: number) => {
     context.textBaseline = 'middle';
     context.fillText(value.toString(), 64, 64);
     
-    return new CanvasTexture(canvas);
+    return new THREE.CanvasTexture(canvas);
 }
 
 const Die = (props: any) => {
