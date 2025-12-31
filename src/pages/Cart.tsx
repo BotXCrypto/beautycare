@@ -23,7 +23,7 @@ interface City {
 }
 
 interface DiscountCode {
-  id: string;
+  id:string;
   code: string;
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
@@ -57,10 +57,6 @@ const Cart = () => {
   const [appliedDiscount, setAppliedDiscount] = useState<DiscountCode | null>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [loadingDiscount, setLoadingDiscount] = useState(false);
-
-import { useAdminSettings } from '@/hooks/useAdminSettings';
-
-// ... inside Cart component
 
   const { settings: adminSettings, loading: loadingSettings } = useAdminSettings(['dice_discount_enabled']);
   const diceRollEnabled = adminSettings['dice_discount_enabled'] === true;
