@@ -1,0 +1,6 @@
+- Run the application and verify that the "failed to load card" error is resolved.
+- Navigate to the cart page and verify that the 3D dice roll feature is working as expected.
+- Go to the Supabase dashboard and enable the `dice_discount_enabled` setting in the `admin_settings` table to test the feature.
+- Test the dice roll feature with different outcomes to ensure the discounts are applied correctly.
+- Verify that the `dice_roll_attempts` table is correctly populated with the roll attempts.
+- Verify that the `orders` table is correctly updated with the dice roll information when an order is placed.

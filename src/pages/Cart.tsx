@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import DiceRoll from '@/components/DiceRoll';
+import { useAdminSettings } from '@/hooks/useAdminSettings';
 
 interface City {
   id: string;
@@ -57,8 +58,13 @@ const Cart = () => {
   const [discountAmount, setDiscountAmount] = useState(0);
   const [loadingDiscount, setLoadingDiscount] = useState(false);
 
-  // Dice Roll Feature State
-  const [diceRollEnabled, setDiceRollEnabled] = useState(true); // Mocked for now
+import { useAdminSettings } from '@/hooks/useAdminSettings';
+
+// ... inside Cart component
+
+  const { settings: adminSettings, loading: loadingSettings } = useAdminSettings(['dice_discount_enabled']);
+  const diceRollEnabled = adminSettings['dice_discount_enabled'] === true;
+
   const [diceReward, setDiceReward] = useState<any>(null);
   const [diceDiscountAmount, setDiceDiscountAmount] = useState(0);
   const [hasRolled, setHasRolled] = useState(false);
