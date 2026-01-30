@@ -372,14 +372,12 @@ const Auth = () => {
         return 'Welcome Back';
       case 'signup':
         return 'Create Account';
-      case 'phone-signup':
-        return 'Sign Up with Phone';
-      case 'phone-verify':
-        return 'Verify Your Number';
       case 'forgot-password':
         return 'Reset Password';
       case 'reset-password':
         return 'Set New Password';
+      default:
+        return 'Welcome';
     }
   };
 
@@ -403,15 +401,6 @@ const Auth = () => {
           </button>
         )}
 
-        {(mode === 'phone-signup' || mode === 'phone-verify') && (
-          <button
-            onClick={() => { setMode('signup'); setPhone(''); setOtp(''); setFullName(''); }}
-            className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" />
-            Back to email sign up
-          </button>
-        )}
 
         <h2 className="text-2xl font-bold text-center mb-6">{getTitle()}</h2>
 
