@@ -1,6 +1,10 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { corsHeaders } from '../_shared/cors.ts';
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 console.log('Dice Roll function loaded');
 
@@ -28,13 +32,14 @@ serve(async (req) => {
     // 1. Check if the feature is enabled in admin_settings
     const { data: settings, error: settingsError } = await supabaseClient
       .from('admin_settings')
-      .select('value')
+      .select('key, value')
       .in('key', ['dice_discount_enabled', 'dice_reward_map', 'dice_max_discount_percentage']);
       
     if (settingsError) throw settingsError;
 
-    const isEnabled = settings.find(s => s.key === 'dice_discount_enabled')?.value;
-    const rewardMap = settings.find(s => s.key === 'dice_reward_map')?.value;
+    const settingsArray = settings as Array<{ key: string; value: any }> || [];
+    const isEnabled = settingsArray.find(s => s.key === 'dice_discount_enabled')?.value;
+    const rewardMap = settingsArray.find(s => s.key === 'dice_reward_map')?.value;
     
     if (!isEnabled) {
       return new Response(JSON.stringify({ error: 'Dice roll feature is disabled.' }), {
@@ -63,7 +68,7 @@ serve(async (req) => {
     if (recentRollsError) throw recentRollsError;
 
     if (recentRolls && recentRolls.length > 0) {
-      const latestRoll = recentRolls[0];
+      const latestRoll = recentRolls[0] as any;
       // Return the existing roll instead of creating a new one
       return new Response(JSON.stringify({
         diceTotal: latestRoll.dice_total,
@@ -122,9 +127,10 @@ serve(async (req) => {
       status: 200,
     });
 
-  } catch (error) {
-    console.error('Error in Dice Roll function:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in Dice Roll function:', errMsg);
+    return new Response(JSON.stringify({ error: errMsg }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     });

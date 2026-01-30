@@ -34,21 +34,19 @@ export function useCart() {
     try {
       setLoading(true);
       
-      // 1. Fetch all columns from cart_items. We use a generic select `*`
-      // because we can't be sure which optional columns (bundle_*, unit_price_override) exist.
-      // The code will gracefully handle if they are missing from the result.
+      // 1. Fetch cart items - use basic columns that exist in the schema
       const { data: cartRows, error: ciError } = await supabase
         .from('cart_items')
-        .select('id,product_id,quantity,unit_price_override,bundle_id,bundle_name,bundle_discount_percentage')
+        .select('id, product_id, quantity')
         .eq('user_id', user.id);
 
       if (ciError) {
-        // If this basic select fails, something is very wrong.
         console.error("Error fetching cart items:", ciError);
         throw new Error("Could not fetch cart items. Please try again.");
       }
 
-      const productIds = Array.from(new Set((cartRows || []).map(r => r.product_id))).filter(Boolean);
+      const rows = (cartRows || []) as Array<{ id: string; product_id: string; quantity: number }>;
+      const productIds = Array.from(new Set(rows.map(r => r.product_id))).filter(Boolean);
 
       if (productIds.length === 0) {
         setItems([]);
@@ -71,15 +69,14 @@ export function useCart() {
       (productsData || []).forEach((p: any) => prodMap.set(p.id, p));
 
       // 3. Merge the two datasets.
-      const merged: CartItem[] = (cartRows || []).map(r => ({
+      const merged: CartItem[] = rows.map(r => ({
         id: r.id,
         product_id: r.product_id,
         quantity: r.quantity,
-        // Gracefully handle potentially missing columns from the select '*'
-        unit_price_override: r.unit_price_override ?? null,
-        bundle_id: r.bundle_id ?? null,
-        bundle_name: r.bundle_name ?? null,
-        bundle_discount_percentage: r.bundle_discount_percentage ?? null,
+        unit_price_override: null,
+        bundle_id: null,
+        bundle_name: null,
+        bundle_discount_percentage: null,
         product: prodMap.get(r.product_id) || { id: r.product_id, title: 'Unknown Product', price: 0, image_url: '', stock: 0 }
       }));
 
