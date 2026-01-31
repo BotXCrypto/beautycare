@@ -33,11 +33,8 @@ const Chatbot = () => {
     deleteConversation,
   } = useConversations(user?.id);
 
-  useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-    }
-  }, [user, navigate]);
+  // No auth requirement - guests can use the chatbot
+  // Conversation history only available for logged-in users
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
